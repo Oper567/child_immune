@@ -109,12 +109,12 @@ app.use((err, req, res, next) => {
 });
 
 // Local Development Listener
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 5001;
-  app.listen(PORT, () => {
-    console.log(`🚀 Local Server: http://localhost:${PORT}`);
-  });
-}
+// Start the server for BOTH Local and Production
+const PORT = process.env.PORT || 10000; // Render uses 10000 by default
 
-// ✅ EXPORT FOR VERCEL
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server is live on port ${PORT}`);
+});
+
+// Keep this for Vercel compatibility if you go back later
 module.exports = app;

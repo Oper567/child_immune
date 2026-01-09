@@ -1,8 +1,13 @@
-// Go up one level to reach the 'generated' folder from 'controllers'
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
 
-// Standard Expanded Schedule
+// ✅ Singleton pattern: Reuse the existing connection if it exists
+// This prevents the "Application exited early" error caused by connection exhaustion
+if (!global.prisma) {
+  global.prisma = new PrismaClient();
+}
+const prisma = global.prisma;
+
+// Standard Expanded Schedule (Days from birth)
 const VACCINE_SCHEDULE = [
   { name: 'BCG', days: 0 },
   { name: 'OPV-0', days: 0 },
@@ -16,15 +21,20 @@ const VACCINE_SCHEDULE = [
 const registerChild = async (req, res) => {
   const { firstName, lastName, dob, guardianPhone } = req.body;
 
+  // 1. Validation
   if (!firstName || !lastName || !dob || !guardianPhone) {
     return res.status(400).json({ error: "All fields are required" });
   }
 
   const birthDate = new Date(dob);
-  // Unique ID: IMU-2026-ABC12
-  const uhid = `IMU-${new Date().getFullYear()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+  
+  // 2. Unique ID Generation (e.g., IMU-2026-ABC12)
+  const currentYear = new Date().getFullYear();
+  const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
+  const uhid = `IMU-${currentYear}-${randomStr}`;
 
   try {
+    // 3. Create Child and associated Vaccine Records in one transaction
     const newChild = await prisma.child.create({
       data: {
         uhid,
@@ -36,17 +46,27 @@ const registerChild = async (req, res) => {
           create: VACCINE_SCHEDULE.map(v => ({
             vaccineName: v.name,
             status: 'DUE',
+            // Calculation: Birthdate + (days * milliseconds in a day)
             nextDueDate: new Date(birthDate.getTime() + v.days * 24 * 60 * 60 * 1000)
           }))
         }
       },
-      include: { records: true }
+      include: { 
+        records: { 
+          orderBy: { nextDueDate: 'asc' } 
+        } 
+      }
     });
 
+    console.log(`✅ Success: Child ${uhid} registered.`);
     return res.status(201).json(newChild);
+
   } catch (error) {
-    console.error("Creation Error:", error);
-    return res.status(500).json({ error: "Failed to save to cloud database" });
+    console.error("❌ Database Creation Error:", error);
+    return res.status(500).json({ 
+      error: "Failed to save to cloud database", 
+      details: error.message 
+    });
   }
 };
 
