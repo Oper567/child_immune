@@ -46,7 +46,7 @@ model Record {
   workerId        String?       @db.ObjectId
   worker          HealthWorker? @relation(fields: [workerId], references: [id])
   
-  clinicName      String?
+  clinicName      String   @default("General Hospital Asaba") // Make it required or give a default
 }
 
 enum Status {
