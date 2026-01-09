@@ -1,12 +1,25 @@
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
 export const searchChild = async (req, res) => {
-  const { query } = req.query; // e.g., ?query=IMU-2026-X
+  const { query } = req.query;
+
+  if (!query) {
+    return res.status(400).json({ error: "Search query is required" });
+  }
 
   try {
     const results = await prisma.child.findMany({
       where: {
         OR: [
-          { uhid: { equals: query.toUpperCase() } },
-          { guardianPhone: { contains: query } }
+          // 1. Partial match for UHID (case insensitive)
+          { uhid: { contains: query.toUpperCase() } },
+          
+          // 2. Partial match for Phone Number
+          { guardianPhone: { contains: query } },
+          
+          // 3. Search by Surname (Useful if the parent forgot the ID)
+          { lastName: { contains: query, mode: 'insensitive' } }
         ]
       },
       select: {
@@ -14,12 +27,15 @@ export const searchChild = async (req, res) => {
         uhid: true,
         firstName: true,
         lastName: true,
-        dob: true
-      }
+        dob: true,
+        guardianPhone: true // Added to help verify the correct child
+      },
+      take: 15 // Limit results to prevent UI lag on mobile
     });
 
     res.json(results);
   } catch (error) {
-    res.status(500).json({ error: "Search failed" });
+    console.error("Search Error:", error);
+    res.status(500).json({ error: "Registry search failed" });
   }
 };

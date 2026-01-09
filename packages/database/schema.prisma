@@ -1,4 +1,4 @@
-// FORCE REDEPLOY: Adding Vercel target engine
+// FORCE REDEPLOY: Updated for Health Worker Auth & Clinic Relations
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x", "rhel-openssl-3.0.x"]
@@ -7,6 +7,19 @@ generator client {
 datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL") 
+}
+
+// 1. New Model for Health Workers
+model HealthWorker {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  email         String   @unique
+  password      String   // Hashed with bcrypt
+  role          Role     @default(NURSE)
+  clinicName    String
+  clinicCode    String   // Used for registration verification
+  recordsSigned Record[] // Tracks which vaccines this worker gave
+  createdAt     DateTime @default(now())
 }
 
 model Child {
@@ -21,13 +34,18 @@ model Child {
 }
 
 model Record {
-  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
   vaccineName     String
-  status          Status    @default(DUE)
+  status          Status        @default(DUE)
   administeredAt  DateTime?
   nextDueDate     DateTime
-  childId         String    @db.ObjectId
-  child           Child     @relation(fields: [childId], references: [id])
+  childId         String        @db.ObjectId
+  child           Child         @relation(fields: [childId], references: [id])
+  
+  // 2. Tracks which worker gave the vaccine
+  workerId        String?       @db.ObjectId
+  worker          HealthWorker? @relation(fields: [workerId], references: [id])
+  
   clinicName      String?
 }
 
@@ -35,4 +53,10 @@ enum Status {
   COMPLETED
   DUE
   MISSED
+}
+
+enum Role {
+  ADMIN
+  NURSE
+  DOCTOR
 }
