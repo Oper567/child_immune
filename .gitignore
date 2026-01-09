@@ -1,5 +1,15 @@
-node_modules
-.next
+# Dependencies
+node_modules/
+
+# Next.js & Build outputs
+.next/
+dist/
+out/
+
+# Environment Variables (SENSITIVE)
 .env
 .env.local
+.env.production
+
+# Vercel
 .vercel
