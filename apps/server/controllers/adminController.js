@@ -1,7 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-export const getHealthMetrics = async (req, res) => {
+const getHealthMetrics = async (req, res) => {
   try {
     // 1. Aggregate Vaccine Status (e.g., how many BCG are COMPLETED vs MISSED)
     const vaccineStats = await prisma.record.groupBy({
