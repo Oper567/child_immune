@@ -4,17 +4,14 @@ const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
 // Utilities & Middleware
-// Ensuring we use the central helpers for consistency
 const { hashPassword, generateToken } = require('./utils/auth.js');
 const { protect } = require('./middleware/auth.js'); 
 
-// Controllers - Mapping exactly to your VS Code sidebar
+// Controllers
 const { registerChild } = require('./controllers/childController');
 const { searchChild } = require('./controllers/searchController');
 const { getHealthMetrics } = require('./controllers/adminController');
-// Note: In your screenshot, this appeared to be 'recordController.js'
 const { administerVaccine } = require('./controllers/recordController');
-const { registerWorker, loginWorker } = require('./controllers/authController');
 
 // ✅ Prisma Singleton (Prevents MongoDB connection exhaustion)
 let prisma;
@@ -40,29 +37,33 @@ app.get('/', (req, res) => {
   });
 });
 
-// --- WORKER AUTH ROUTES ---
+// --- 🔐 WORKER AUTH ROUTES ---
 
 app.post('/api/worker/register', async (req, res) => {
   const { name, email, password, clinicCode, clinicName } = req.body;
   const MASTER_CLINIC_CODE = process.env.MASTER_CLINIC_CODE || "HEALTH-2026";
   
+  if (!email || !password || !clinicCode) {
+    return res.status(400).json({ error: "Missing required fields (email, password, clinicCode)" });
+  }
+
   try {
     if (clinicCode !== MASTER_CLINIC_CODE) {
       return res.status(401).json({ error: "Invalid Clinic Access Code" });
     }
 
     const hashedPassword = await hashPassword(password);
-    await prisma.healthWorker.create({
+    const worker = await prisma.healthWorker.create({
       data: {
         name,
-        email,
+        email: email.toLowerCase(),
         password: hashedPassword,
         clinicName: clinicName || "General Hospital Asaba",
         clinicCode
       }
     });
 
-    res.status(201).json({ message: "Account created successfully" });
+    res.status(201).json({ message: "Account created successfully", id: worker.id });
   } catch (error) {
     res.status(400).json({ error: "Registration failed. Email might already exist." });
   }
@@ -70,8 +71,17 @@ app.post('/api/worker/register', async (req, res) => {
 
 app.post('/api/worker/login', async (req, res) => {
   const { email, password } = req.body;
+
+  // Prevent "undefined" Prisma error
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required" });
+  }
+
   try {
-    const worker = await prisma.healthWorker.findUnique({ where: { email } });
+    const worker = await prisma.healthWorker.findUnique({ 
+      where: { email: email.toLowerCase() } 
+    });
+
     if (!worker) return res.status(404).json({ error: "Worker not found" });
 
     const validPass = await bcrypt.compare(password, worker.password);
@@ -79,21 +89,40 @@ app.post('/api/worker/login', async (req, res) => {
 
     const token = generateToken(worker);
 
-    res.json({ token, name: worker.name, clinicName: worker.clinicName });
+    res.json({ 
+      token, 
+      worker: {
+        id: worker.id,
+        name: worker.name, 
+        clinicName: worker.clinicName 
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: "Login failed" });
   }
 });
 
-// --- PROTECTED MEDICAL ROUTES ---
+// --- 🏥 PROTECTED MEDICAL ROUTES ---
 
+// Registration & Search
 app.post('/api/register', protect, registerChild);
 app.get('/api/search', protect, searchChild);
 app.get('/api/metrics', protect, getHealthMetrics);
-app.post('/api/auth/register', registerWorker);
-app.post('/api/auth/login', loginWorker);
 
-// Child Profile & Records
+// All Children (Dashboard List)
+app.get('/api/children', protect, async (req, res) => {
+  try {
+    const children = await prisma.child.findMany({
+      include: { records: true },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(children);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch list of children" });
+  }
+});
+
+// Specific Child Profile
 app.get('/api/child/:uhid', protect, async (req, res) => {
   const { uhid } = req.params;
   try {
@@ -102,31 +131,18 @@ app.get('/api/child/:uhid', protect, async (req, res) => {
       include: { records: { orderBy: { nextDueDate: 'asc' } } }
     });
     
-    if (!child) return res.status(404).json({ error: "Record not found" });
+    if (!child) return res.status(404).json({ error: "Child record not found" });
     res.json(child);
   } catch (error) {
     res.status(500).json({ error: "Fetch failed" });
   }
 });
 
-// Get all children (List for Dashboard)
-app.get('/api/children', protect, async (req, res) => {
-  try {
-    const children = await prisma.child.findMany({
-      include: { 
-        records: true // Shows their vaccination history too
-      },
-      orderBy: { createdAt: 'desc' } // Newest first
-    });
-    res.json(children);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch list of children" });
-  }
-});
-// Vaccine Administration - Uses the logic from recordController
+// Vaccine Administration
 app.patch('/api/record/:id', protect, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
+  
   try {
     const updated = await prisma.record.update({
       where: { id },
@@ -134,7 +150,6 @@ app.patch('/api/record/:id', protect, async (req, res) => {
         status, 
         administeredAt: status === 'COMPLETED' ? new Date() : null,
         workerId: req.worker.id,
-        // Using clinicName from the JWT token for automatic stamping
         clinicName: req.worker.clinicName || "General Hospital Asaba" 
       }
     });
@@ -144,7 +159,7 @@ app.patch('/api/record/:id', protect, async (req, res) => {
   }
 });
 
-// Summary Stats for Dashboard
+// Summary Stats
 app.get('/api/stats', protect, async (req, res) => {
   try {
     const today = new Date();
@@ -166,7 +181,8 @@ app.get('/api/stats', protect, async (req, res) => {
   }
 });
 
-// Global Error Handler
+// --- ⚠️ ERROR HANDLING ---
+
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Internal Server Error' });
