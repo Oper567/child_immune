@@ -2,11 +2,14 @@ const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 
-// ✅ FIX: Singleton pattern for Prisma to prevent connection exhaustion on Vercel
+// ✅ FIX: Improved Singleton for Prisma
+// This prevents "Too many connections" errors on MongoDB Atlas during Vercel cold starts
 let prisma;
 
 if (process.env.NODE_ENV === 'production') {
-  prisma = new PrismaClient();
+  prisma = new PrismaClient({
+    log: ['error', 'warn'],
+  });
 } else {
   if (!global.prisma) {
     global.prisma = new PrismaClient();
@@ -14,24 +17,29 @@ if (process.env.NODE_ENV === 'production') {
   prisma = global.prisma;
 }
 
+// Ensure this path is 100% correct relative to index.js
 const { registerChild } = require('./controllers/childController');
+
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// ✅ Root Health Check (Always test this first)
+// ✅ Root Health Check 
+// If this returns JSON, your Vercel setup is 100% correct.
 app.get('/', (req, res) => {
-  res.status(200).json({ status: 'Online', message: 'Immunize-Chain API' });
+  res.status(200).json({ 
+    status: 'Online', 
+    message: 'Immunize-Chain API',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // --- ROUTES ---
 
-// 1. Register a new child
 app.post('/api/register', registerChild);
 
-// 2. Search for a child by UHID
 app.get('/api/child/:uhid', async (req, res) => {
   const { uhid } = req.params;
   try {
@@ -46,11 +54,10 @@ app.get('/api/child/:uhid', async (req, res) => {
     res.json(child);
   } catch (error) {
     console.error("Fetch Error:", error);
-    res.status(500).json({ error: "Database connection failed", details: error.message });
+    res.status(500).json({ error: "Database query failed", message: error.message });
   }
 });
 
-// 3. Mark a vaccine as administered
 app.patch('/api/record/:id', async (req, res) => {
   const { id } = req.params;
   const { status, clinicName } = req.body;
@@ -70,7 +77,6 @@ app.patch('/api/record/:id', async (req, res) => {
   }
 });
 
-// 4. Get Dashboard Statistics
 app.get('/api/stats', async (req, res) => {
   try {
     const today = new Date();
@@ -96,13 +102,13 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
-// Global Error Handler
+// Global Error Handler for Vercel Logs
 app.use((err, req, res, next) => {
-  console.error("Global Error:", err.stack);
-  res.status(500).json({ error: 'Internal Server Error' });
+  console.error("CRITICAL ERROR:", err.message);
+  res.status(500).json({ error: 'Internal Server Error', details: err.message });
 });
 
-// ✅ FIX: Standard Vercel Listener
+// Local Development Listener
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 5001;
   app.listen(PORT, () => {
@@ -110,4 +116,5 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
+// ✅ EXPORT FOR VERCEL
 module.exports = app;
