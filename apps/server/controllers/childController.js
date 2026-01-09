@@ -1,5 +1,6 @@
-const db = require('../../../packages/database');
-const prisma = db.default || db.prisma || db;
+// Go up one level to reach the 'generated' folder from 'controllers'
+const { PrismaClient } = require('../generated/client');
+const prisma = new PrismaClient();
 
 // Standard Expanded Schedule
 const VACCINE_SCHEDULE = [
