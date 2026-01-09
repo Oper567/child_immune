@@ -39,3 +39,4 @@ export const searchChild = async (req, res) => {
     res.status(500).json({ error: "Registry search failed" });
   }
 };
+module.exports = { searchChild };

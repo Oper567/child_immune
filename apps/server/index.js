@@ -2,18 +2,20 @@ const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 
 // Utilities & Middleware
+// Ensuring we use the central helpers for consistency
 const { hashPassword, generateToken } = require('./utils/auth.js');
 const { protect } = require('./middleware/auth.js'); 
 
-// Controllers
+// Controllers - Mapping exactly to your VS Code sidebar
 const { registerChild } = require('./controllers/childController');
 const { searchChild } = require('./controllers/searchController');
 const { getHealthMetrics } = require('./controllers/metricsController');
+// Note: In your screenshot, this appeared to be 'recordController.js'
+const { administerVaccine } = require('./controllers/recordController');
 
-// ✅ Prisma Singleton
+// ✅ Prisma Singleton (Prevents MongoDB connection exhaustion)
 let prisma;
 if (process.env.NODE_ENV === 'production') {
   prisma = new PrismaClient({ log: ['error', 'warn'] });
@@ -25,9 +27,6 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const app = express();
-const JWT_SECRET = process.env.JWT_SECRET || 'asaba_medical_secret_2026';
-const MASTER_CLINIC_CODE = "HEALTH-2026";
-
 app.use(cors());
 app.use(express.json());
 
@@ -42,16 +41,17 @@ app.get('/', (req, res) => {
 
 // --- WORKER AUTH ROUTES ---
 
-// 1. Register Health Worker
 app.post('/api/worker/register', async (req, res) => {
   const { name, email, password, clinicCode, clinicName } = req.body;
+  const MASTER_CLINIC_CODE = process.env.MASTER_CLINIC_CODE || "HEALTH-2026";
+  
   try {
     if (clinicCode !== MASTER_CLINIC_CODE) {
       return res.status(401).json({ error: "Invalid Clinic Access Code" });
     }
 
     const hashedPassword = await hashPassword(password);
-    const worker = await prisma.healthWorker.create({
+    await prisma.healthWorker.create({
       data: {
         name,
         email,
@@ -67,7 +67,6 @@ app.post('/api/worker/register', async (req, res) => {
   }
 });
 
-// 2. Worker Login
 app.post('/api/worker/login', async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -87,9 +86,9 @@ app.post('/api/worker/login', async (req, res) => {
 
 // --- PROTECTED MEDICAL ROUTES ---
 
-// Registration & Search
 app.post('/api/register', protect, registerChild);
 app.get('/api/search', protect, searchChild);
+app.get('/api/metrics', protect, getHealthMetrics);
 
 // Child Profile & Records
 app.get('/api/child/:uhid', protect, async (req, res) => {
@@ -107,7 +106,7 @@ app.get('/api/child/:uhid', protect, async (req, res) => {
   }
 });
 
-// Vaccine Administration
+// Vaccine Administration - Uses the logic from recordController
 app.patch('/api/record/:id', protect, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -118,7 +117,8 @@ app.patch('/api/record/:id', protect, async (req, res) => {
         status, 
         administeredAt: status === 'COMPLETED' ? new Date() : null,
         workerId: req.worker.id,
-        clinicName: req.worker.clinicName // Auto-stamp clinic from worker profile
+        // Using clinicName from the JWT token for automatic stamping
+        clinicName: req.worker.clinicName || "General Hospital Asaba" 
       }
     });
     res.json(updated);
@@ -127,7 +127,7 @@ app.patch('/api/record/:id', protect, async (req, res) => {
   }
 });
 
-// Analytics & Stats
+// Summary Stats for Dashboard
 app.get('/api/stats', protect, async (req, res) => {
   try {
     const today = new Date();
@@ -149,8 +149,6 @@ app.get('/api/stats', protect, async (req, res) => {
   }
 });
 
-app.get('/api/metrics', protect, getHealthMetrics);
-
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -161,5 +159,3 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Asaba Node Live on Port ${PORT}`);
 });
-
-module.exports = app;
