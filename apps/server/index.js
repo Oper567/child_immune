@@ -11,7 +11,7 @@ const { protect } = require('./middleware/auth.js');
 // Controllers - Mapping exactly to your VS Code sidebar
 const { registerChild } = require('./controllers/childController');
 const { searchChild } = require('./controllers/searchController');
-const { getHealthMetrics } = require('./controllers/metricsController');
+const { getHealthMetrics } = require('./controllers/adminController');
 // Note: In your screenshot, this appeared to be 'recordController.js'
 const { administerVaccine } = require('./controllers/recordController');
 
