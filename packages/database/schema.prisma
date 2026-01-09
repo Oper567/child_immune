@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL") 
+}
+
+model Child {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  uhid          String   @unique
+  firstName     String
+  lastName      String
+  dob           DateTime
+  guardianPhone String
+  records       Record[]
+  createdAt     DateTime @default(now())
+}
+
+model Record {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  vaccineName     String
+  status          Status    @default(DUE)
+  administeredAt  DateTime?
+  nextDueDate     DateTime
+  childId         String    @db.ObjectId
+  child           Child     @relation(fields: [childId], references: [id])
+  clinicName      String?
+}
+
+enum Status {
+  COMPLETED
+  DUE
+  MISSED
+}
