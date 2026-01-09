@@ -14,6 +14,7 @@ const { searchChild } = require('./controllers/searchController');
 const { getHealthMetrics } = require('./controllers/adminController');
 // Note: In your screenshot, this appeared to be 'recordController.js'
 const { administerVaccine } = require('./controllers/recordController');
+const { registerWorker, loginWorker } = require('./controllers/authController');
 
 // ✅ Prisma Singleton (Prevents MongoDB connection exhaustion)
 let prisma;
@@ -89,6 +90,8 @@ app.post('/api/worker/login', async (req, res) => {
 app.post('/api/register', protect, registerChild);
 app.get('/api/search', protect, searchChild);
 app.get('/api/metrics', protect, getHealthMetrics);
+app.post('/api/auth/register', registerWorker);
+app.post('/api/auth/login', loginWorker);
 
 // Child Profile & Records
 app.get('/api/child/:uhid', protect, async (req, res) => {
