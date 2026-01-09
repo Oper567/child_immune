@@ -109,6 +109,20 @@ app.get('/api/child/:uhid', protect, async (req, res) => {
   }
 });
 
+// Get all children (List for Dashboard)
+app.get('/api/children', protect, async (req, res) => {
+  try {
+    const children = await prisma.child.findMany({
+      include: { 
+        records: true // Shows their vaccination history too
+      },
+      orderBy: { createdAt: 'desc' } // Newest first
+    });
+    res.json(children);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch list of children" });
+  }
+});
 // Vaccine Administration - Uses the logic from recordController
 app.patch('/api/record/:id', protect, async (req, res) => {
   const { id } = req.params;
