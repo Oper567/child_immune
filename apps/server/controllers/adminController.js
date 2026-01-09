@@ -1,16 +1,18 @@
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+
+// Use global prisma to prevent connection exhaustion on Render
+const prisma = global.prisma || new PrismaClient();
+if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
 
 const getHealthMetrics = async (req, res) => {
   try {
-    // 1. Aggregate Vaccine Status (e.g., how many BCG are COMPLETED vs MISSED)
+    // 1. Aggregate Vaccine Status
     const vaccineStats = await prisma.record.groupBy({
       by: ['status', 'vaccineName'],
       _count: { id: true },
     });
 
     // 2. Identify 'Missed' hotspots by clinic
-    // We group records by clinicName and count the MISSED ones
     const hotspots = await prisma.record.groupBy({
       by: ['clinicName'],
       where: {
@@ -31,7 +33,6 @@ const getHealthMetrics = async (req, res) => {
     const totalRecords = await prisma.record.count();
     const completedRecords = await prisma.record.count({ where: { status: 'COMPLETED' } });
     
-    // Simple math for the dashboard: (Completed / Total) * 100
     const coverageRate = totalRecords > 0 ? (completedRecords / totalRecords) * 100 : 0;
 
     res.json({ 
@@ -45,3 +46,6 @@ const getHealthMetrics = async (req, res) => {
     res.status(500).json({ error: "Could not fetch health metrics" });
   }
 };
+
+// This MUST be named exactly as you destructure it in index.js
+module.exports = { getHealthMetrics };
