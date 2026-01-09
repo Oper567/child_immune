@@ -11,9 +11,5 @@
       "src": "/(.*)",
       "dest": "index.js"
     }
-  ],
-  "env": {
-    "PRISMA_CLI_BINARY_TARGETS": "rhel-openssl-3.0.x",
-    "DATABASE_URL": "@database_url"
-  }
+  ]
 }
