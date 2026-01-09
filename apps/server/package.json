@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "build": "PRISMA_CLI_BINARY_TARGETS=rhel-openssl-3.0.x prisma generate --schema ../../packages/database/schema.prisma"
+    "vercel-build": "PRISMA_CLI_BINARY_TARGETS=rhel-openssl-3.0.x prisma generate --schema ../../packages/database/schema.prisma",
+    "build": "npm run vercel-build"
   },
   "type": "commonjs",
   "dependencies": {
