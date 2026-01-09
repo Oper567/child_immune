@@ -1,8 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 // Safe import for Monorepo Prisma 6/7
-const db = require('../../packages/database');
-const prisma = db.default || db.prisma || db; 
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 const { registerChild } = require('./controllers/childController');
 
@@ -102,9 +102,12 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Internal Server Error' });
 });
-const PORT = 5001; // Changed from 5000
+// Only start the listener if running locally
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5001;
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+  });
+}
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
 module.exports = app;
