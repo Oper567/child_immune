@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from 'react';
-import { Search, User, Phone, Hash, Calendar, CheckCircle2, Clock } from 'lucide-react';
+import { Search, Phone, Hash, Calendar, CheckCircle2, Clock, ChevronRight } from 'lucide-react';
 
-// Step 2 logic: Use environment variable or default to localhost
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
 export default function SearchPage() {
@@ -20,8 +19,11 @@ export default function SearchPage() {
     setError('');
     
     try {
-      // Updated fetch to use API_BASE
-      const res = await fetch(`${API_BASE}/api/search?query=${query}`);
+      // In a real app, you'd add the Bearer token here from localStorage
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/search?query=${query}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
 
       if (res.ok) {
@@ -31,98 +33,99 @@ export default function SearchPage() {
         setError(data.message || "No records found.");
       }
     } catch (err) {
-      setError(`Server connection failed. Is the backend running at ${API_BASE}?`);
+      setError("Server connection failed.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-8">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold text-slate-900">Search Records</h1>
-        <p className="text-slate-500">Search by Child's UHID or Guardian's Phone Number</p>
+    <div className="min-h-screen bg-slate-50 pb-24">
+      {/* --- Sticky Mobile Header --- */}
+      <div className="bg-white px-4 pt-6 pb-4 border-b border-slate-200 sticky top-0 z-30">
+        <h1 className="text-xl font-black text-slate-900 mb-4">Find Patient</h1>
+        
+        <form onSubmit={handleSearch} className="relative">
+          <input
+            type="text"
+            inputMode="text" // Better for mobile keyboards
+            placeholder="Search UHID or Phone..."
+            className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-slate-100 border-none shadow-inner focus:ring-2 focus:ring-blue-500 outline-none text-base"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <button 
+            type="submit"
+            disabled={loading}
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 text-white p-2 rounded-xl shadow-lg active:scale-95 transition-transform"
+          >
+            {loading ? <Clock className="animate-spin" size={20} /> : <ChevronRight size={20} />}
+          </button>
+        </form>
       </div>
 
-      {/* --- Search Bar --- */}
-      <form onSubmit={handleSearch} className="relative max-w-2xl mx-auto">
-        <input
-          type="text"
-          placeholder="Enter UHID (e.g., IMM-XXXX) or Phone..."
-          className="w-full pl-12 pr-4 py-4 rounded-2xl border border-slate-200 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-        <button 
-          type="submit"
-          disabled={loading}
-          className="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-600 text-white px-6 py-2 rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? "Searching..." : "Search"}
-        </button>
-      </form>
-
-      {/* --- Results Area --- */}
-      <div className="space-y-6">
+      <div className="p-4 space-y-4">
         {error && (
-          <div className="text-center p-8 bg-red-50 text-red-600 rounded-2xl border border-red-100">
+          <div className="p-4 bg-red-50 text-red-600 rounded-2xl text-sm font-bold text-center border border-red-100">
             {error}
           </div>
         )}
 
+        {/* --- Mobile Result Cards --- */}
         {results.map((child) => (
-          <div key={child.id} className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden transition-all hover:shadow-2xl">
-            {/* Child Profile Header */}
-            <div className="bg-slate-900 p-6 text-white flex flex-wrap justify-between items-center gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center text-2xl font-bold shadow-inner">
-                  {child.firstName[0]}{child.lastName[0]}
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold">{child.firstName} {child.lastName}</h2>
-                  <div className="flex gap-4 text-slate-400 text-sm mt-1">
-                    <span className="flex items-center gap-1"><Hash size={14}/> {child.uhid}</span>
-                    <span className="flex items-center gap-1"><Phone size={14}/> {child.guardianPhone}</span>
-                  </div>
+          <div key={child.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            {/* Header: Quick Info */}
+            <div className="p-4 flex items-center gap-4 border-b border-slate-50">
+              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold shrink-0">
+                {child.firstName[0]}{child.lastName[0]}
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-slate-900 truncate">{child.firstName} {child.lastName}</h2>
+                <div className="flex gap-3 text-[11px] font-bold text-slate-500 uppercase tracking-tighter">
+                  <span className="flex items-center gap-1"><Hash size={12}/> {child.uhid}</span>
+                  <span className="flex items-center gap-1 text-blue-600"><Phone size={12}/> {child.guardianPhone}</span>
                 </div>
               </div>
             </div>
 
-            {/* Vaccination Timeline */}
-            <div className="p-8">
-              <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                <Calendar className="text-blue-500" size={20} />
-                Vaccination History & Schedule
-              </h3>
-              <div className="relative border-l-2 border-slate-100 ml-4 space-y-8">
-                {child.records?.map((rec: any) => (
-                  <div key={rec.id} className="relative pl-8">
-                    {/* Timeline Dot */}
-                    <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${
-                      rec.status === 'COMPLETED' ? 'bg-emerald-500' : 'bg-amber-400'
-                    }`} />
-                    
-                    <div className="flex justify-between items-start bg-slate-50 p-4 rounded-xl border border-slate-100 transition-colors hover:bg-slate-100">
-                      <div>
-                        <p className="font-bold text-slate-800">{rec.vaccineName}</p>
-                        <p className="text-sm text-slate-500 flex items-center gap-1">
-                          <Calendar size={14} /> Due: {new Date(rec.nextDueDate).toLocaleDateString('en-GB')}
-                        </p>
+            {/* Content: Compact Timeline */}
+            <div className="p-4 bg-slate-50/50">
+              <p className="text-[10px] font-black text-slate-400 uppercase mb-3">Recent Vaccines</p>
+              <div className="space-y-3">
+                {child.records?.slice(0, 3).map((rec: any) => (
+                  <div key={rec.id} className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-1.5 rounded-lg ${rec.status === 'COMPLETED' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}>
+                        {rec.status === 'COMPLETED' ? <CheckCircle2 size={16}/> : <Clock size={16}/>}
                       </div>
-                      <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${
-                        rec.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                      }`}>
-                        {rec.status === 'COMPLETED' ? <CheckCircle2 size={12}/> : <Clock size={12}/>}
-                        {rec.status}
+                      <div>
+                        <p className="text-xs font-bold text-slate-800 leading-none mb-1">{rec.vaccineName}</p>
+                        <p className="text-[10px] text-slate-500">Due: {new Date(rec.nextDueDate).toLocaleDateString('en-GB')}</p>
                       </div>
                     </div>
+                    <span className={`text-[9px] font-black px-2 py-1 rounded-md ${
+                      rec.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {rec.status}
+                    </span>
                   </div>
                 ))}
               </div>
+              
+              <button className="w-full mt-4 py-3 bg-white border border-slate-200 text-blue-600 text-xs font-black rounded-xl active:bg-slate-100 transition-colors uppercase tracking-widest">
+                View Full Medical Card
+              </button>
             </div>
           </div>
         ))}
+
+        {!loading && results.length === 0 && !error && (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+            <Search size={48} className="mb-4 opacity-20" />
+            <p className="text-sm font-medium">Start typing to find a patient</p>
+          </div>
+        )}
       </div>
     </div>
   );
