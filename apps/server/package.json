@@ -1,23 +1,28 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "description": "",
+  "description": "ImmuniTrack Backend Server",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "postinstall": "prisma generate --schema ../../packages/database/schema.prisma"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@prisma/client": "^7.2.0",
+    "@prisma/client": "5.22.0",
     "@react-pdf/renderer": "^4.3.2",
     "cors": "^2.8.5",
     "database": "file:../../packages/database",
     "dotenv": "^17.2.3",
-    "express": "^5.2.1",
-    "nodemon": "^3.1.11",
+    "express": "^4.19.2",
+    "prisma": "5.22.0",
     "qrcode.react": "^4.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
   }
 }
