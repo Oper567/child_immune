@@ -3,10 +3,7 @@
   "builds": [
     {
       "src": "index.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["../../packages/database/schema.prisma"]
-      }
+      "use": "@vercel/node"
     }
   ],
   "routes": [
@@ -16,6 +13,7 @@
     }
   ],
   "env": {
-    "PRISMA_CLI_BINARY_TARGETS": "rhel-openssl-3.0.x"
+    "PRISMA_CLI_BINARY_TARGETS": "rhel-openssl-3.0.x",
+    "DATABASE_URL": "@database_url"
   }
 }
