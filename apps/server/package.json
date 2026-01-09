@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "postinstall": "prisma generate --schema ../../packages/database/schema.prisma"
+    "build": "prisma generate --schema ../../packages/database/schema.prisma"
   },
   "keywords": [],
   "author": "",
@@ -17,7 +17,7 @@
     "@react-pdf/renderer": "^4.3.2",
     "cors": "^2.8.5",
     "database": "file:../../packages/database",
-    "dotenv": "^17.2.3",
+    "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "prisma": "5.22.0",
     "qrcode.react": "^4.2.0"

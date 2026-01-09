@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 // Safe import for Monorepo Prisma 6/7
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require('./generated/client');
 const prisma = new PrismaClient();
 
 const { registerChild } = require('./controllers/childController');
