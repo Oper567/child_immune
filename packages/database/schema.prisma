@@ -1,6 +1,7 @@
 // FORCE REDEPLOY: Updated for Health Worker Auth & Clinic Relations
 generator client {
   provider      = "prisma-client-js"
+  output   = "../../apps/server/node_modules/.prisma/client"
   binaryTargets = ["native", "debian-openssl-3.0.x", "rhel-openssl-3.0.x"]
 }
 
