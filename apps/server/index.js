@@ -107,3 +107,4 @@ const PORT = 5001; // Changed from 5000
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+module.exports = app;
