@@ -1,27 +1,28 @@
-const { verifyToken } = require('../utils/auth.js');
+const { verifyToken } = require('../utils/jwt');
 
-const protect = (req, res, next) => {
-  // 1. Get token from the 'Authorization' header
-  const authHeader = req.headers.authorization;
+const protect = async (req, res, next) => {
+  try {
+    let token;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: "No token provided. Access denied." });
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!token) {
+      return res.status(401).json({ error: "Access denied. Please log in." });
+    }
+
+    // ✅ This is where the "verifyToken is not a function" was happening
+    const decoded = verifyToken(token);
+
+    // Attach worker info (id, role, clinicName) to the request object
+    req.worker = decoded; 
+    
+    next();
+  } catch (error) {
+    console.error("🔒 Auth Error:", error.message);
+    return res.status(401).json({ error: "Session expired or invalid token." });
   }
-
-  const token = authHeader.split(' ')[1];
-
-  // 2. Verify the token
-  const decoded = verifyToken(token);
-
-  if (!decoded) {
-    return res.status(401).json({ error: "Invalid or expired session. Please login again." });
-  }
-
-  // 3. Attach worker info to the request object
-  // This allows the next function to know WHO is making the change (Audit Trail)
-  req.worker = decoded;
-  
-  next();
 };
 
 module.exports = { protect };
