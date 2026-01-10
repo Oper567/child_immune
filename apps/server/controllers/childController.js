@@ -1,12 +1,10 @@
 const { PrismaClient } = require('@prisma/client');
 
-// ✅ Singleton pattern for Prisma to prevent exhausting DB connections
 if (!global.prisma) {
   global.prisma = new PrismaClient();
 }
 const prisma = global.prisma;
 
-// Nigeria EPI Schedule (Days from birth)
 const VACCINE_SCHEDULE = [
   { name: 'BCG', days: 0 },
   { name: 'OPV-0', days: 0 },
@@ -26,28 +24,27 @@ const registerChild = async (req, res) => {
   try {
     const { firstName, lastName, dob, guardianPhone } = req.body;
     
-    // 1. Context Extraction (from JWT middleware)
+    // 1. Context Extraction
+    // Ensure workerId is a string. If using MongoDB, it must be a valid ObjectId hex string
     const workerId = req.worker?.id;
     const clinicName = req.worker?.clinicName || "Asaba General Hospital";
 
-    // 2. Strict Input Validation
+    // 2. Validation
     if (!firstName || !lastName || !dob || !guardianPhone) {
-      return res.status(400).json({ error: "All fields are required to create a health record." });
+      return res.status(400).json({ error: "Missing required medical data" });
     }
 
-    // Ensure date is valid (prevents "Invalid Date" database crash)
     const birthDate = new Date(dob);
     if (isNaN(birthDate.getTime())) {
-      return res.status(400).json({ error: "Invalid Date of Birth provided." });
+      return res.status(400).json({ error: "Invalid Date of Birth" });
     }
 
-    // 3. Unique UHID Generation
+    // 3. UHID Generation
     const currentYear = new Date().getFullYear();
     const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
     const uhid = `IMU-${currentYear}-${randomStr}`;
 
-    // 4. Atomic Transaction: Creating Child and nested Vaccination Schedule
-    // 
+    // 4. Create Record
     const newChild = await prisma.child.create({
       data: {
         uhid,
@@ -55,46 +52,35 @@ const registerChild = async (req, res) => {
         lastName,
         dob: birthDate,
         guardianPhone,
+        // ✅ ONLY connect if workerId exists to avoid MongoDB BSON error
+        ...(workerId && { registeredBy: { connect: { id: workerId } } }),
         records: {
-          create: VACCINE_SCHEDULE.map(v => {
-            // Calculate precise date: birthDate + (days * ms in a day)
-            const dueDate = new Date(birthDate.getTime() + v.days * 24 * 60 * 60 * 1000);
-            return {
-              vaccineName: v.name,
-              status: 'DUE',
-              nextDueDate: dueDate,
-              clinicName: clinicName,
-            };
-          })
+          create: VACCINE_SCHEDULE.map(v => ({
+            vaccineName: v.name,
+            status: 'DUE',
+            nextDueDate: new Date(birthDate.getTime() + v.days * 24 * 60 * 60 * 1000),
+            clinicName: clinicName,
+          }))
         }
       },
       include: { 
-        records: { 
-          orderBy: { nextDueDate: 'asc' } 
-        } 
+        records: { orderBy: { nextDueDate: 'asc' } } 
       }
     });
 
-    console.log(`🏥 [REGISTERED] ${uhid} at ${clinicName} by Worker ${workerId || 'SYSTEM'}`);
+    console.log(`🏥 [SUCCESS] ${uhid} registered.`);
     return res.status(201).json(newChild);
 
   } catch (error) {
-    console.error("❌ Registration Error:", error);
+    console.error("❌ DB Error:", error.message);
 
-    // Specific Handling for Prisma Errors
     if (error.code === 'P2002') {
-      return res.status(400).json({ 
-        error: "Duplicate Entry", 
-        details: "A child with this phone number or UHID already exists." 
-      });
+      return res.status(400).json({ error: "Child already exists (UHID/Phone duplicate)." });
     }
 
-    // Check if database is down/unreachable
-    if (error.message.includes('Can\'t reach database server')) {
-      return res.status(503).json({ 
-        error: "Database Offline", 
-        details: "The Health Cloud is temporarily unreachable. Please try again." 
-      });
+    // If MongoDB IDs are the issue
+    if (error.message.includes('Argument id: Invalid value provided')) {
+      return res.status(500).json({ error: "System Auth Error: Invalid Worker ID format." });
     }
 
     return res.status(500).json({ 
