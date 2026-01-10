@@ -1,37 +1,48 @@
-// FORCE REDEPLOY: Updated for Health Worker Auth & Clinic Relations
+// schema.prisma
+
 generator client {
   provider      = "prisma-client-js"
-  output   = "../../apps/server/node_modules/.prisma/client"
   binaryTargets = ["native", "debian-openssl-3.0.x", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL") 
+  relationMode = "prisma"
 }
 
-// 1. New Model for Health Workers
 model HealthWorker {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  name          String
-  email         String   @unique
-  password      String   // Hashed with bcrypt
-  role          Role     @default(NURSE)
-  clinicName    String
-  clinicCode    String   // Used for registration verification
-  recordsSigned Record[] // Tracks which vaccines this worker gave
-  createdAt     DateTime @default(now())
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  email          String   @unique
+  password       String
+  role           Role     @default(NURSE)
+  clinicName     String
+  clinicCode     String
+  
+  // Relation: Records this worker has administered
+  recordsSigned  Record[] 
+  
+  // Relation: Children this worker has registered
+  childrenRegistered Child[] 
+  
+  createdAt      DateTime @default(now())
 }
 
 model Child {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  uhid          String   @unique
-  firstName     String
-  lastName      String
-  dob           DateTime
-  guardianPhone String
-  records       Record[]
-  createdAt     DateTime @default(now())
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  uhid           String   @unique
+  firstName      String
+  lastName       String
+  dob            DateTime
+  guardianPhone  String
+  records        Record[]
+  
+  // Track who created this child record
+  registeredById String?  @db.ObjectId
+  registeredBy   HealthWorker? @relation(fields: [registeredById], references: [id])
+  
+  createdAt      DateTime @default(now())
 }
 
 model Record {
@@ -40,14 +51,16 @@ model Record {
   status          Status        @default(DUE)
   administeredAt  DateTime?
   nextDueDate     DateTime
+  
+  // Link to Child
   childId         String        @db.ObjectId
   child           Child         @relation(fields: [childId], references: [id])
   
-  // 2. Tracks which worker gave the vaccine
+  // Link to Worker who administered the shot
   workerId        String?       @db.ObjectId
   worker          HealthWorker? @relation(fields: [workerId], references: [id])
   
-  clinicName      String   @default("General Hospital Asaba") // Make it required or give a default
+  clinicName      String        @default("General Hospital Asaba")
 }
 
 enum Status {
