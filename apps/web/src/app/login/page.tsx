@@ -46,7 +46,7 @@ export default function LoginPage() {
         <div className="inline-flex p-4 bg-blue-600 text-white rounded-3xl mb-4 shadow-xl shadow-blue-200">
           <Hospital size={32} />
         </div>
-        <h1 className="text-3xl font-extrabold text-slate-900">Health Portal</h1>
+        <h1 className="text-3xl font-extrabold text-slate-900">Health</h1>
         <p className="text-slate-500 mt-2">Enter your credentials to access records</p>
       </div>
 
