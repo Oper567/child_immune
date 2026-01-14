@@ -1,5 +1,3 @@
-// packages/database/schema.prisma
-
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
@@ -10,13 +8,40 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ... Paste your Child, Record, and HealthWorker models below this
+enum Status {
+  COMPLETED
+  DUE
+  MISSED
+}
+
+enum Role {
+  ADMIN
+  NURSE
+  DOCTOR
+}
+
+model HealthWorker {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  name              String
+  email             String   @unique
+  password          String
+  role              Role     @default(NURSE)
+  clinicName        String
+  clinicCode        String
+  
+  // Relations
+  recordsSigned      Record[] 
+  childrenRegistered Child[] 
+  
+  createdAt         DateTime @default(now())
+}
+
 model Child {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   uhid            String   @unique
   firstName       String
   lastName        String
-  dateOfBirth     DateTime @map("dob") // Mapped to match frontend state
+  dateOfBirth     DateTime @map("dob")
   guardianPhone   String
   records         Record[]
   
@@ -36,7 +61,6 @@ model Record {
   childId         String        @db.ObjectId
   child           Child         @relation(fields: [childId], references: [id])
   
-  // Link to Worker who performed the update
   workerId        String?       @db.ObjectId
   worker          HealthWorker? @relation(fields: [workerId], references: [id])
   
