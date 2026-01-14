@@ -26,7 +26,7 @@ const app = express();
 app.use(cors({ origin: "*", methods: ["GET", "POST", "PATCH", "DELETE"], credentials: true }));
 app.use(express.json());
 
-// 🕵️ DEBUG MIDDLEWARE: Watch this in Render logs to catch "jwt malformed"
+// 🕵️ DEBUG MIDDLEWARE: Prints malformed data to Render logs
 app.use((req, res, next) => {
   const auth = req.headers.authorization;
   if (auth && (auth.includes("undefined") || auth.includes("null"))) {
@@ -48,7 +48,7 @@ app.post("/api/worker/register", async (req, res) => {
 
   try {
     if (clinicCode !== MASTER_CLINIC_CODE) {
-      return res.status(401).json({ error: "Invalid Obiaruku Access Code" });
+      return res.status(401).json({ error: "Invalid Access Code" });
     }
     const hashedPassword = await hashPassword(password);
     const worker = await prisma.healthWorker.create({
@@ -60,7 +60,7 @@ app.post("/api/worker/register", async (req, res) => {
         clinicCode,
       },
     });
-    res.status(201).json({ message: "ObiTrack Account Created", id: worker.id });
+    res.status(201).json({ message: "Account Created", id: worker.id });
   } catch (error) {
     res.status(400).json({ error: "Email already registered." });
   }
@@ -88,6 +88,23 @@ app.post("/api/worker/login", async (req, res) => {
 
 app.post("/api/register", protect, registerChild);
 app.get("/api/search", protect, searchChild);
+
+// GET INDIVIDUAL RECORD (Fixes the 404 for details view)
+app.get("/api/records/:id", protect, async (req, res) => {
+  const { id } = req.params;
+  if (!id || id === "undefined") return res.status(400).json({ error: "Valid ID required" });
+
+  try {
+    const record = await prisma.record.findUnique({
+      where: { id },
+      include: { child: true }
+    });
+    if (!record) return res.status(404).json({ error: "Record not found" });
+    res.json(record);
+  } catch (error) {
+    res.status(500).json({ error: "Error fetching record" });
+  }
+});
 
 app.get("/api/due-today", protect, async (req, res) => {
   try {
@@ -122,56 +139,35 @@ app.get("/api/stats", protect, async (req, res) => {
   }
 });
 
-app.get("/api/metrics", protect, async (req, res) => {
-  try {
-    const vaccineStats = await prisma.record.groupBy({ by: ['vaccineName', 'status'], _count: { id: true } });
-    const totalRecords = await prisma.record.count();
-    const completed = await prisma.record.count({ where: { status: "COMPLETED" } });
-    const coverage = totalRecords > 0 ? Math.round((completed / totalRecords) * 100) : 0;
+// --- ✅ UPDATE ROUTES ---
 
-    const hotspots = await prisma.record.groupBy({
-      by: ['clinicName'],
-      where: { status: "DUE", nextDueDate: { lt: new Date() } },
-      _count: { id: true },
-      orderBy: { _count: { id: 'desc' } },
-      take: 5
-    });
-
-    res.json({ overallCoverage: `${coverage}%`, vaccineStats, hotspots });
-  } catch (error) {
-    res.status(500).json({ error: "Metrics failed" });
-  }
-});
-
-// --- ✅ FIXING THE 404: RECORD UPDATE ROUTES ---
-
-// Option A: Update by Child and Vaccine Name
-app.post("/api/records/update-vaccine", protect, async (req, res) => {
-  const { childId, vaccineName } = req.body;
-  try {
-    const updated = await prisma.record.updateMany({
-      where: { childId, vaccineName, status: "DUE" },
-      data: { status: "COMPLETED", administeredAt: new Date(), clinicName: "Obiaruku Central Clinic" }
-    });
-    res.json({ success: true, updated });
-  } catch (error) {
-    res.status(400).json({ error: "Update failed" });
-  }
-});
-
-// Option B: Update by specific Record ID (To fix your "undefined" 404)
-app.patch("/api/record/:id", protect, async (req, res) => {
+// Update by ID (The standard way)
+app.patch("/api/records/:id", protect, async (req, res) => {
   const { id } = req.params;
   if (!id || id === "undefined") return res.status(400).json({ error: "Valid ID required" });
 
   try {
     const updated = await prisma.record.update({
       where: { id },
-      data: { status: "COMPLETED", administeredAt: new Date(), clinicName: "Obiaruku Central Clinic" }
+      data: { status: "COMPLETED", administeredAt: new Date() }
     });
     res.json(updated);
   } catch (error) {
-    res.status(400).json({ error: "Record not found" });
+    res.status(400).json({ error: "Update failed" });
+  }
+});
+
+// Bulk/Named Update
+app.post("/api/records/update-vaccine", protect, async (req, res) => {
+  const { childId, vaccineName } = req.body;
+  try {
+    const updated = await prisma.record.updateMany({
+      where: { childId, vaccineName, status: "DUE" },
+      data: { status: "COMPLETED", administeredAt: new Date() }
+    });
+    res.json({ success: true, updated });
+  } catch (error) {
+    res.status(400).json({ error: "Update failed" });
   }
 });
 
