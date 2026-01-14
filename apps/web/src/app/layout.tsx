@@ -15,7 +15,8 @@ import {
   Menu,
   X,
   Loader2,
-  MapPin
+  MapPin,
+  ShieldCheck // Added for Admin icon
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -26,14 +27,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const router = useRouter();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [workerName, setWorkerName] = useState('Health Worker');
+  const [isAdmin, setIsAdmin] = useState(false); // New: Track admin status
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     const storedName = localStorage.getItem('workerName');
+    const role = localStorage.getItem('role'); // Assume role is 'admin' or 'worker'
     
     if (storedName) setWorkerName(storedName);
+    if (role === 'admin') setIsAdmin(true);
 
+    // Define routes that don't require a login token
     const publicRoutes = ['/login', '/register-worker', '/'];
     const isPublicRoute = publicRoutes.includes(pathname);
 
@@ -49,11 +54,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     router.push('/login');
   };
 
+  // Auth Loading State
   if (isCheckingAuth && !['/login', '/register-worker', '/'].includes(pathname)) {
     return (
       <html lang="en">
         <body className="h-screen flex items-center justify-center bg-white">
-          <Loader2 className="animate-spin text-emerald-600" size={40} />
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="animate-spin text-emerald-600" size={40} />
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Verifying Session</span>
+          </div>
         </body>
       </html>
     );
@@ -79,7 +88,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <SidebarLink href="/dashboard" icon={<LayoutDashboard size={20}/>} label="Clinic Dashboard" active={pathname === '/dashboard'} onClick={() => setSidebarOpen(false)} />
                 <SidebarLink href="/search" icon={<Search size={20}/>} label="Search Records" active={pathname === '/search'} onClick={() => setSidebarOpen(false)} />
                 <SidebarLink href="/register-child" icon={<PlusCircle size={20}/>} label="New Registration" active={pathname === '/register-child'} onClick={() => setSidebarOpen(false)} />
-                <SidebarLink href="/records" icon={<Home size={20}/>} label="Obiaruku Inventory" active={pathname === '/records'} onClick={() => setSidebarOpen(false)} />
+                <SidebarLink href="/records" icon={<Home size={20}/>} label="Inventory" active={pathname === '/records'} onClick={() => setSidebarOpen(false)} />
+                
+                {/* Mobile Admin Link */}
+                {isAdmin && (
+                  <SidebarLink href="/admin" icon={<ShieldCheck size={20}/>} label="Admin Panel" active={pathname === '/admin'} onClick={() => setSidebarOpen(false)} />
+                )}
               </div>
               <button onClick={handleLogout} className="flex items-center gap-3 p-4 text-red-500 font-bold border-t">
                 <LogOut size={20}/> Sign Out
@@ -125,6 +139,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <SidebarLink href="/search" icon={<Search size={20}/>} label="Search Child" active={pathname === '/search'} />
               <SidebarLink href="/register-child" icon={<PlusCircle size={20}/>} label="New Registration" active={pathname === '/register-child'} />
               <SidebarLink href="/records" icon={<Home size={20}/>} label="Clinic Inventory" active={pathname === '/records'} />
+
+              {/* DESKTOP ADMIN SECTION */}
+              {isAdmin && (
+                <div className="mt-6 pt-6 border-t border-slate-100">
+                  <p className="text-[10px] font-black text-red-400 uppercase tracking-widest px-4 mb-3">System Admin</p>
+                  <SidebarLink href="/admin" icon={<ShieldCheck size={20}/>} label="Manage Workers" active={pathname === '/admin'} />
+                </div>
+              )}
             </div>
           </div>
 
@@ -158,7 +180,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
 
             <BottomNavLink href="/records" icon={<Home size={24}/>} label="Clinic" active={pathname === '/records'} />
-            <BottomNavLink href="/profile" icon={<User size={24}/>} label="Profile" active={pathname === '/profile'} />
+            <BottomNavLink href={isAdmin ? "/admin" : "/profile"} icon={isAdmin ? <ShieldCheck size={24}/> : <User size={24}/>} label={isAdmin ? "Admin" : "Profile"} active={pathname === '/profile' || pathname === '/admin'} />
           </div>
         </nav>
       </body>
@@ -166,6 +188,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   );
 }
 
+// Sub-components
 function SidebarLink({ href, icon, label, active, onClick }: any) {
   return (
     <Link 

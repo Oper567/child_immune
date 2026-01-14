@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Users, Syringe, AlertCircle, Phone, CheckCircle2, RefreshCw, MapPin } from 'lucide-react';
+import { Users, Syringe, AlertCircle, Phone, CheckCircle2, RefreshCw, MapPin, Loader2, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://child-immune-api.onrender.com';
@@ -10,6 +10,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({ totalChildren: 0, vaccinesDueToday: 0, totalAdministered: 0 });
   const [dueList, setDueList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -40,11 +41,49 @@ export default function AdminDashboard() {
     }
   };
 
+  // ✅ Function to handle "Mark as Done" directly from the queue
+  const handleMarkAsDone = async (record: any) => {
+    const token = localStorage.getItem('token');
+    setProcessingId(record.id);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/records/update-vaccine`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({
+          childId: record.child.id,
+          vaccineName: record.vaccineName,
+          dateGiven: new Date().toISOString().split('T')[0],
+          status: 'COMPLETED'
+        })
+      });
+
+      if (res.ok) {
+        // Remove item from local list to show immediate progress
+        setDueList(prev => prev.filter(item => item.id !== record.id));
+        setStats(prev => ({ 
+            ...prev, 
+            totalAdministered: prev.totalAdministered + 1,
+            vaccinesDueToday: prev.vaccinesDueToday - 1 
+        }));
+      } else {
+        alert("Failed to update record. Please try again.");
+      }
+    } catch (err) {
+      alert("Network error. Check connection.");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   useEffect(() => { fetchData(); }, []);
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-slate-50">
-      <div className="w-12 h-12 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin"></div>
+      <Loader2 className="w-12 h-12 text-emerald-600 animate-spin" />
       <p className="text-emerald-800 font-bold animate-pulse uppercase tracking-widest text-xs">Connecting to Obiaruku Node...</p>
     </div>
   );
@@ -61,7 +100,7 @@ export default function AdminDashboard() {
         </div>
         
         {error && (
-          <div className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-xs font-bold border border-red-100 flex items-center gap-2 animate-bounce">
+          <div className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-xs font-bold border border-red-100 flex items-center gap-2">
             <AlertCircle size={16} /> {error}
           </div>
         )}
@@ -77,7 +116,10 @@ export default function AdminDashboard() {
       {/* --- QUEUE --- */}
       <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
         <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
-          <h3 className="font-black text-slate-800 uppercase text-sm tracking-widest">Daily Vaccination Queue</h3>
+          <div>
+            <h3 className="font-black text-slate-800 uppercase text-sm tracking-widest">Daily Vaccination Queue</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Status: {dueList.length} Pending</p>
+          </div>
           <button onClick={fetchData} className="p-2 hover:bg-white rounded-full transition-all text-slate-400 hover:text-emerald-600">
             <RefreshCw size={20} />
           </button>
@@ -91,14 +133,22 @@ export default function AdminDashboard() {
             </div>
           ) : (
             dueList.map((item) => (
-              <div key={item.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/50 transition-all">
+              <div key={item.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/50 transition-all group">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center font-black">
+                  <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center font-black text-xl shadow-inner">
                     {item.child.firstName[0]}
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-900 text-lg">{item.child.firstName} {item.child.lastName}</h4>
-                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded uppercase">{item.vaccineName}</span>
+                    <h4 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                        {item.child.firstName} {item.child.lastName}
+                        <button 
+                            onClick={() => router.push(`/records/${item.child.id}`)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-slate-300 hover:text-emerald-600"
+                        >
+                            <ArrowRight size={16} />
+                        </button>
+                    </h4>
+                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded uppercase tracking-wider">{item.vaccineName}</span>
                   </div>
                 </div>
                 
@@ -106,8 +156,12 @@ export default function AdminDashboard() {
                   <a href={`tel:${item.child.guardianPhone}`} className="p-3 bg-slate-100 text-slate-600 rounded-2xl hover:bg-emerald-50 hover:text-emerald-600 transition-all">
                     <Phone size={20} />
                   </a>
-                  <button className="flex-1 md:flex-none bg-slate-900 text-white px-8 py-3 rounded-2xl font-black text-xs hover:bg-emerald-600 transition-all shadow-lg active:scale-95">
-                    MARK AS DONE
+                  <button 
+                    disabled={processingId === item.id}
+                    onClick={() => handleMarkAsDone(item)}
+                    className="flex-1 md:flex-none bg-slate-900 text-white px-8 py-3 rounded-2xl font-black text-xs hover:bg-emerald-600 transition-all shadow-lg active:scale-95 disabled:bg-slate-300 flex items-center justify-center min-w-[140px]"
+                  >
+                    {processingId === item.id ? <Loader2 size={16} className="animate-spin" /> : "MARK AS DONE"}
                   </button>
                 </div>
               </div>
@@ -121,8 +175,8 @@ export default function AdminDashboard() {
 
 function StatCard({ title, value, icon: Icon, color }: any) {
   return (
-    <div className="bg-white p-6 rounded-[2rem] shadow-lg shadow-slate-200/40 border border-slate-50 flex items-center gap-5">
-      <div className={`${color} p-4 rounded-2xl text-white shadow-xl`}>
+    <div className="bg-white p-6 rounded-[2rem] shadow-lg shadow-slate-200/40 border border-slate-50 flex items-center gap-5 group hover:border-emerald-200 transition-all">
+      <div className={`${color} p-4 rounded-2xl text-white shadow-xl group-hover:scale-110 transition-transform`}>
         <Icon size={24} />
       </div>
       <div>
