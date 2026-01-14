@@ -1,48 +1,16 @@
-// schema.prisma
-
-generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x", "rhel-openssl-3.0.x"]
-}
-
-datasource db {
-  provider = "mongodb"
-  url      = env("DATABASE_URL") 
-  relationMode = "prisma"
-}
-
-model HealthWorker {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  name           String
-  email          String   @unique
-  password       String
-  role           Role     @default(NURSE)
-  clinicName     String
-  clinicCode     String
-  
-  // Relation: Records this worker has administered
-  recordsSigned  Record[] 
-  
-  // Relation: Children this worker has registered
-  childrenRegistered Child[] 
-  
-  createdAt      DateTime @default(now())
-}
-
 model Child {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  uhid           String   @unique
-  firstName      String
-  lastName       String
-  dob            DateTime
-  guardianPhone  String
-  records        Record[]
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  uhid            String   @unique
+  firstName       String
+  lastName        String
+  dateOfBirth     DateTime @map("dob") // Mapped to match frontend state
+  guardianPhone   String
+  records         Record[]
   
-  // Track who created this child record
-  registeredById String?  @db.ObjectId
-  registeredBy   HealthWorker? @relation(fields: [registeredById], references: [id])
+  registeredById  String?  @db.ObjectId
+  registeredBy    HealthWorker? @relation(fields: [registeredById], references: [id])
   
-  createdAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
 }
 
 model Record {
@@ -52,25 +20,12 @@ model Record {
   administeredAt  DateTime?
   nextDueDate     DateTime
   
-  // Link to Child
   childId         String        @db.ObjectId
   child           Child         @relation(fields: [childId], references: [id])
   
-  // Link to Worker who administered the shot
+  // Link to Worker who performed the update
   workerId        String?       @db.ObjectId
   worker          HealthWorker? @relation(fields: [workerId], references: [id])
   
-  clinicName      String        @default("General Hospital Asaba")
-}
-
-enum Status {
-  COMPLETED
-  DUE
-  MISSED
-}
-
-enum Role {
-  ADMIN
-  NURSE
-  DOCTOR
+  clinicName      String        @default("Obiaruku Central Clinic")
 }
