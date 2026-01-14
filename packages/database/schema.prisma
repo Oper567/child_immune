@@ -1,9 +1,49 @@
+// 1. SETUP: Define the engine and provider
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 2. DATABASE: Define your MongoDB connection
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// 3. ENUMS: Define your specific types
+enum Status {
+  COMPLETED
+  DUE
+  MISSED
+}
+
+enum Role {
+  ADMIN
+  NURSE
+  DOCTOR
+}
+
+// 4. MODELS: Your application data structures
+model HealthWorker {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  name              String
+  email             String   @unique
+  password          String
+  role              Role     @default(NURSE)
+  clinicName        String
+  clinicCode        String
+  
+  recordsSigned     Record[] 
+  childrenRegistered Child[] 
+  
+  createdAt         DateTime @default(now())
+}
+
 model Child {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   uhid            String   @unique
   firstName       String
   lastName        String
-  dateOfBirth     DateTime @map("dob") // Mapped to match frontend state
+  dateOfBirth     DateTime @map("dob")
   guardianPhone   String
   records         Record[]
   
@@ -23,7 +63,6 @@ model Record {
   childId         String        @db.ObjectId
   child           Child         @relation(fields: [childId], references: [id])
   
-  // Link to Worker who performed the update
   workerId        String?       @db.ObjectId
   worker          HealthWorker? @relation(fields: [workerId], references: [id])
   
