@@ -26,7 +26,7 @@ const app = express();
 app.use(cors({ origin: "*", methods: ["GET", "POST", "PATCH", "DELETE"], credentials: true }));
 app.use(express.json());
 
-// 🕵️ DEBUG MIDDLEWARE: Prints malformed data to Render logs
+// 🕵️ DEBUG MIDDLEWARE
 app.use((req, res, next) => {
   const auth = req.headers.authorization;
   if (auth && (auth.includes("undefined") || auth.includes("null"))) {
@@ -62,6 +62,7 @@ app.post("/api/worker/register", async (req, res) => {
     });
     res.status(201).json({ message: "Account Created", id: worker.id });
   } catch (error) {
+    console.error("Registration Error:", error);
     res.status(400).json({ error: "Email already registered." });
   }
 });
@@ -89,10 +90,12 @@ app.post("/api/worker/login", async (req, res) => {
 app.post("/api/register", protect, registerChild);
 app.get("/api/search", protect, searchChild);
 
-// GET INDIVIDUAL RECORD (Fixes the 404 for details view)
+// GET INDIVIDUAL RECORD
 app.get("/api/records/:id", protect, async (req, res) => {
   const { id } = req.params;
-  if (!id || id === "undefined") return res.status(400).json({ error: "Valid ID required" });
+  if (!id || id === "undefined" || id === "null") {
+    return res.status(400).json({ error: "A valid Record ID is required" });
+  }
 
   try {
     const record = await prisma.record.findUnique({
@@ -108,13 +111,13 @@ app.get("/api/records/:id", protect, async (req, res) => {
 
 app.get("/api/due-today", protect, async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tonight = new Date();
-    tonight.setHours(23, 59, 59, 999);
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
 
     const dueRecords = await prisma.record.findMany({
-      where: { status: "DUE", nextDueDate: { gte: today, lte: tonight } },
+      where: { status: "DUE", nextDueDate: { gte: start, lte: end } },
       include: { child: true },
       orderBy: { child: { lastName: "asc" } },
     });
@@ -124,24 +127,31 @@ app.get("/api/due-today", protect, async (req, res) => {
   }
 });
 
+// Fixed Stats Route (Corrected Date Logic to prevent 500 error)
 app.get("/api/stats", protect, async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+
     const [totalChildren, vaccinesDueToday, totalAdministered] = await Promise.all([
       prisma.child.count(),
-      prisma.record.count({ where: { status: "DUE", nextDueDate: { gte: today, lte: new Date().setHours(23,59,59,999) } } }),
+      prisma.record.count({ 
+        where: { status: "DUE", nextDueDate: { gte: start, lte: end } } 
+      }),
       prisma.record.count({ where: { status: "COMPLETED" } }),
     ]);
+
     res.json({ totalChildren, vaccinesDueToday, totalAdministered });
   } catch (error) {
-    res.status(500).json({ error: "Stats failed" });
+    console.error("📊 STATS DATABASE ERROR:", error);
+    res.status(500).json({ error: "Stats failed", details: error.message });
   }
 });
 
 // --- ✅ UPDATE ROUTES ---
 
-// Update by ID (The standard way)
 app.patch("/api/records/:id", protect, async (req, res) => {
   const { id } = req.params;
   if (!id || id === "undefined") return res.status(400).json({ error: "Valid ID required" });
@@ -157,7 +167,6 @@ app.patch("/api/records/:id", protect, async (req, res) => {
   }
 });
 
-// Bulk/Named Update
 app.post("/api/records/update-vaccine", protect, async (req, res) => {
   const { childId, vaccineName } = req.body;
   try {
@@ -171,8 +180,9 @@ app.post("/api/records/update-vaccine", protect, async (req, res) => {
   }
 });
 
+// --- ⚠️ ERROR HANDLING ---
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error("💥 CRITICAL ERROR:", err.stack);
   res.status(500).json({ error: "Critical Node Error" });
 });
 
