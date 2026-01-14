@@ -26,9 +26,22 @@ const app = express();
 app.use(cors({ origin: "*", methods: ["GET", "POST", "PATCH", "DELETE"], credentials: true }));
 app.use(express.json());
 
+// 🕵️ DEBUG MIDDLEWARE: Watch this in Render logs to catch "jwt malformed"
+app.use((req, res, next) => {
+  const auth = req.headers.authorization;
+  if (auth && (auth.includes("undefined") || auth.includes("null"))) {
+    console.error("🚨 MALFORMED TOKEN DETECTED:", auth);
+  }
+  next();
+});
+
+// ✅ ROOT HEALTH CHECK
+app.get("/", (req, res) => {
+  res.status(200).json({ status: "Online", node: "ObiTrack Obiaruku Central" });
+});
+
 // --- 🔐 WORKER AUTH ROUTES ---
 
-// register with: POST /api/worker/register
 app.post("/api/worker/register", async (req, res) => {
   const { name, email, password, clinicCode } = req.body;
   const MASTER_CLINIC_CODE = process.env.MASTER_CLINIC_CODE || "OBI-2026";
@@ -37,7 +50,6 @@ app.post("/api/worker/register", async (req, res) => {
     if (clinicCode !== MASTER_CLINIC_CODE) {
       return res.status(401).json({ error: "Invalid Obiaruku Access Code" });
     }
-
     const hashedPassword = await hashPassword(password);
     const worker = await prisma.healthWorker.create({
       data: {
@@ -48,14 +60,12 @@ app.post("/api/worker/register", async (req, res) => {
         clinicCode,
       },
     });
-
     res.status(201).json({ message: "ObiTrack Account Created", id: worker.id });
   } catch (error) {
-    res.status(400).json({ error: "Email already registered in Obiaruku Node." });
+    res.status(400).json({ error: "Email already registered." });
   }
 });
 
-// login with: POST /api/worker/login
 app.post("/api/worker/login", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -79,7 +89,6 @@ app.post("/api/worker/login", async (req, res) => {
 app.post("/api/register", protect, registerChild);
 app.get("/api/search", protect, searchChild);
 
-// Dashboard Queue: Get children due for vaccines TODAY
 app.get("/api/due-today", protect, async (req, res) => {
   try {
     const today = new Date();
@@ -88,10 +97,7 @@ app.get("/api/due-today", protect, async (req, res) => {
     tonight.setHours(23, 59, 59, 999);
 
     const dueRecords = await prisma.record.findMany({
-      where: {
-        status: "DUE",
-        nextDueDate: { gte: today, lte: tonight },
-      },
+      where: { status: "DUE", nextDueDate: { gte: today, lte: tonight } },
       include: { child: true },
       orderBy: { child: { lastName: "asc" } },
     });
@@ -101,41 +107,28 @@ app.get("/api/due-today", protect, async (req, res) => {
   }
 });
 
-// Admin Dashboard: Main Stats
 app.get("/api/stats", protect, async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const tonight = new Date();
-    tonight.setHours(23, 59, 59, 999);
-
     const [totalChildren, vaccinesDueToday, totalAdministered] = await Promise.all([
       prisma.child.count(),
-      prisma.record.count({ where: { status: "DUE", nextDueDate: { gte: today, lte: tonight } } }),
+      prisma.record.count({ where: { status: "DUE", nextDueDate: { gte: today, lte: new Date().setHours(23,59,59,999) } } }),
       prisma.record.count({ where: { status: "COMPLETED" } }),
     ]);
-
     res.json({ totalChildren, vaccinesDueToday, totalAdministered });
   } catch (error) {
-    res.status(500).json({ error: "Stats fetch failed" });
+    res.status(500).json({ error: "Stats failed" });
   }
 });
 
-// Analytics: Health Intelligence Metrics
 app.get("/api/metrics", protect, async (req, res) => {
   try {
-    const vaccineStats = await prisma.record.groupBy({
-      by: ['vaccineName', 'status'],
-      _count: { id: true }
-    });
-
+    const vaccineStats = await prisma.record.groupBy({ by: ['vaccineName', 'status'], _count: { id: true } });
     const totalRecords = await prisma.record.count();
     const completed = await prisma.record.count({ where: { status: "COMPLETED" } });
-    
-    // Calculate Coverage Rate (Administered / Total Expected)
     const coverage = totalRecords > 0 ? Math.round((completed / totalRecords) * 100) : 0;
 
-    // Find "Hotspots" (Clinics or areas with highest "DUE" records past their date)
     const hotspots = await prisma.record.groupBy({
       by: ['clinicName'],
       where: { status: "DUE", nextDueDate: { lt: new Date() } },
@@ -144,27 +137,21 @@ app.get("/api/metrics", protect, async (req, res) => {
       take: 5
     });
 
-    res.json({
-      overallCoverage: `${coverage}%`,
-      vaccineStats,
-      hotspots
-    });
+    res.json({ overallCoverage: `${coverage}%`, vaccineStats, hotspots });
   } catch (error) {
-    res.status(500).json({ error: "Metrics calculation failed" });
+    res.status(500).json({ error: "Metrics failed" });
   }
 });
 
-// MARK AS DONE: Update vaccine status
+// --- ✅ FIXING THE 404: RECORD UPDATE ROUTES ---
+
+// Option A: Update by Child and Vaccine Name
 app.post("/api/records/update-vaccine", protect, async (req, res) => {
-  const { childId, vaccineName, status, dateGiven } = req.body;
+  const { childId, vaccineName } = req.body;
   try {
     const updated = await prisma.record.updateMany({
       where: { childId, vaccineName, status: "DUE" },
-      data: {
-        status: status || "COMPLETED",
-        administeredAt: dateGiven ? new Date(dateGiven) : new Date(),
-        clinicName: "Obiaruku Central Clinic"
-      }
+      data: { status: "COMPLETED", administeredAt: new Date(), clinicName: "Obiaruku Central Clinic" }
     });
     res.json({ success: true, updated });
   } catch (error) {
@@ -172,7 +159,22 @@ app.post("/api/records/update-vaccine", protect, async (req, res) => {
   }
 });
 
-// --- ⚠️ ERROR HANDLING ---
+// Option B: Update by specific Record ID (To fix your "undefined" 404)
+app.patch("/api/record/:id", protect, async (req, res) => {
+  const { id } = req.params;
+  if (!id || id === "undefined") return res.status(400).json({ error: "Valid ID required" });
+
+  try {
+    const updated = await prisma.record.update({
+      where: { id },
+      data: { status: "COMPLETED", administeredAt: new Date(), clinicName: "Obiaruku Central Clinic" }
+    });
+    res.json(updated);
+  } catch (error) {
+    res.status(400).json({ error: "Record not found" });
+  }
+});
+
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: "Critical Node Error" });
