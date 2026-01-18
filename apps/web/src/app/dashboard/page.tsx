@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { Users, Syringe, AlertCircle, Phone, CheckCircle2, RefreshCw, MapPin, Loader2, ArrowRight } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { Users, Syringe, AlertCircle, Phone, CheckCircle2, RefreshCw, MapPin, Loader2, ArrowRight, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
+// Ensure this environment variable is set in your Render/Vercel dashboard
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://child-immune-api.onrender.com';
 
 export default function AdminDashboard() {
@@ -14,19 +15,32 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const fetchData = async () => {
+  // --- 1. DATA FETCHING LOGIC ---
+  const fetchData = useCallback(async () => {
     const token = localStorage.getItem('token');
-    if (!token) return router.push('/login');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
 
     try {
-      const headers = { 'Authorization': `Bearer ${token}` };
+      const headers = { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json' 
+      };
       
       const [statsRes, listRes] = await Promise.all([
         fetch(`${API_BASE}/api/stats`, { headers }),
         fetch(`${API_BASE}/api/due-today`, { headers })
       ]);
 
-      if (!statsRes.ok || !listRes.ok) throw new Error("Server Sync Failed");
+      // Handle Session Expiry (401 Unauthorized)
+      if (statsRes.status === 401 || listRes.status === 401) {
+        handleLogout();
+        return;
+      }
+
+      if (!statsRes.ok || !listRes.ok) throw new Error("Obiaruku Node Sync Failed");
 
       const statsData = await statsRes.json();
       const listData = await listRes.json();
@@ -39,11 +53,19 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
+  }, [router]);
+
+  // --- 2. AUTHENTICATION HELPERS ---
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    router.push('/login');
   };
 
-  // ✅ Function to handle "Mark as Done" directly from the queue
+  // --- 3. VACCINATION UPDATE LOGIC ---
   const handleMarkAsDone = async (record: any) => {
     const token = localStorage.getItem('token');
+    if (!token) return handleLogout();
+    
     setProcessingId(record.id);
 
     try {
@@ -54,23 +76,23 @@ export default function AdminDashboard() {
           'Content-Type': 'application/json' 
         },
         body: JSON.stringify({
-          childId: record.child.id,
+          childId: record.child?.id || record.childId,
           vaccineName: record.vaccineName,
-          dateGiven: new Date().toISOString().split('T')[0],
-          status: 'COMPLETED'
+          dateGiven: new Date().toISOString() // Backend expects ISO format
         })
       });
 
       if (res.ok) {
-        // Remove item from local list to show immediate progress
+        // ✅ OPTIMISTIC UI: Remove from list immediately
         setDueList(prev => prev.filter(item => item.id !== record.id));
         setStats(prev => ({ 
             ...prev, 
             totalAdministered: prev.totalAdministered + 1,
-            vaccinesDueToday: prev.vaccinesDueToday - 1 
+            vaccinesDueToday: Math.max(0, prev.vaccinesDueToday - 1) 
         }));
       } else {
-        alert("Failed to update record. Please try again.");
+        const errData = await res.json();
+        alert(errData.error || "Update failed. Please try again.");
       }
     } catch (err) {
       alert("Network error. Check connection.");
@@ -79,12 +101,14 @@ export default function AdminDashboard() {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-slate-50">
       <Loader2 className="w-12 h-12 text-emerald-600 animate-spin" />
-      <p className="text-emerald-800 font-bold animate-pulse uppercase tracking-widest text-xs">Connecting to Obiaruku Node...</p>
+      <p className="text-emerald-800 font-bold animate-pulse uppercase tracking-widest text-xs">Syncing Obiaruku Node...</p>
     </div>
   );
 
@@ -99,11 +123,20 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">Clinic Overview</h1>
         </div>
         
-        {error && (
-          <div className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-xs font-bold border border-red-100 flex items-center gap-2">
-            <AlertCircle size={16} /> {error}
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {error && (
+            <div className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-xs font-bold border border-red-100 flex items-center gap-2">
+              <AlertCircle size={16} /> {error}
+            </div>
+          )}
+          <button 
+            onClick={handleLogout}
+            className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-red-500 rounded-2xl shadow-sm transition-all group"
+            title="Log Out"
+          >
+            <LogOut size={20} />
+          </button>
+        </div>
       </header>
 
       {/* --- STAT CARDS --- */}
@@ -135,14 +168,14 @@ export default function AdminDashboard() {
             dueList.map((item) => (
               <div key={item.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/50 transition-all group">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center font-black text-xl shadow-inner">
-                    {item.child.firstName[0]}
+                  <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center font-black text-xl shadow-inner uppercase">
+                    {item.child?.firstName?.[0] || 'P'}
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-900 text-lg flex items-center gap-2">
-                        {item.child.firstName} {item.child.lastName}
+                        {item.child?.firstName} {item.child?.lastName}
                         <button 
-                            onClick={() => router.push(`/records/${item.child.id}`)}
+                            onClick={() => router.push(`/records/${item.child?.id}`)}
                             className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-slate-300 hover:text-emerald-600"
                         >
                             <ArrowRight size={16} />
@@ -153,7 +186,8 @@ export default function AdminDashboard() {
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  <a href={`tel:${item.child.guardianPhone}`} className="p-3 bg-slate-100 text-slate-600 rounded-2xl hover:bg-emerald-50 hover:text-emerald-600 transition-all">
+                  {/* Phone link with null check */}
+                  <a href={`tel:${item.child?.guardianPhone}`} className="p-3 bg-slate-100 text-slate-600 rounded-2xl hover:bg-emerald-50 hover:text-emerald-600 transition-all">
                     <Phone size={20} />
                   </a>
                   <button 
@@ -173,6 +207,7 @@ export default function AdminDashboard() {
   );
 }
 
+// --- SUB-COMPONENTS ---
 function StatCard({ title, value, icon: Icon, color }: any) {
   return (
     <div className="bg-white p-6 rounded-[2rem] shadow-lg shadow-slate-200/40 border border-slate-50 flex items-center gap-5 group hover:border-emerald-200 transition-all">

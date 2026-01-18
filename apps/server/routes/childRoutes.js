@@ -1,10 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
+const { protect } = require('../middleware/auth'); // Import your JWT protector
 
 const prisma = new PrismaClient();
 
-// Nigeria EPI Schedule
+/**
+ * 🇳🇬 Nigeria EPI Schedule Definition
+ * 'days' represents the number of days after birth the vaccine is due.
+ */
 const VACCINE_SCHEDULE = [
   { name: 'BCG', days: 0 }, { name: 'OPV-0', days: 0 }, { name: 'HepB-0', days: 0 },
   { name: 'PENTA-1', days: 42 }, { name: 'OPV-1', days: 42 }, { name: 'PCV-1', days: 42 },
@@ -12,21 +16,27 @@ const VACCINE_SCHEDULE = [
   { name: 'PENTA-3', days: 98 }, { name: 'Measles-1', days: 270 }, { name: 'Yellow Fever', days: 270 }
 ];
 
-// 1. GET DASHBOARD STATS
-router.get('/stats', async (req, res) => {
+// 1. GET DASHBOARD STATS (Total registered vs. pending today)
+router.get('/stats', protect, async (req, res) => {
   try {
-    const totalChildren = await prisma.child.count();
-    const pendingVaccines = await prisma.record.count({ where: { status: 'DUE' } });
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const end = new Date(); end.setHours(23, 59, 59, 999);
+
+    const [totalChildren, pendingToday] = await Promise.all([
+      prisma.child.count(),
+      prisma.record.count({
+        where: { status: 'DUE', nextDueDate: { gte: start, lte: end } }
+      })
+    ]);
     
-    res.json({ totalChildren, pendingVaccines });
+    res.json({ totalChildren, pendingToday });
   } catch (error) {
-    console.error("Stats Error:", error);
     res.status(500).json({ error: "Could not load stats" });
   }
 });
 
 // 2. SEARCH FOR CHILD (Phone or UHID)
-router.get('/search', async (req, res) => {
+router.get('/search', protect, async (req, res) => {
   try {
     const { query } = req.query;
     if (!query) return res.status(400).json({ error: "Search query required" });
@@ -38,7 +48,7 @@ router.get('/search', async (req, res) => {
           { uhid: { contains: query, mode: 'insensitive' } }
         ]
       },
-      take: 5
+      take: 10
     });
     res.json(results);
   } catch (error) {
@@ -46,17 +56,18 @@ router.get('/search', async (req, res) => {
   }
 });
 
-// 3. REGISTER CHILD
-router.post('/register', async (req, res) => {
+// 3. REGISTER CHILD (Includes auto-generating schedule)
+router.post('/register', protect, async (req, res) => {
+  const { firstName, lastName, dob, guardianPhone } = req.body;
+  const workerId = req.user?.id; // Assuming JWT payload has worker ID
+
+  if (!firstName || !lastName || !dob || !guardianPhone) {
+    return res.status(400).json({ error: "Please provide all required fields." });
+  }
+
   try {
-    const { firstName, lastName, dob, guardianPhone } = req.body;
-    const workerId = req.worker?.id; // From your JWT middleware
-
-    if (!firstName || !lastName || !dob || !guardianPhone) {
-      return res.status(400).json({ error: "All fields are required" });
-    }
-
     const birthDate = new Date(dob);
+    // Unique ID format: IMU-2026-ABC12
     const uhid = `IMU-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
     const newChild = await prisma.child.create({
@@ -66,24 +77,23 @@ router.post('/register', async (req, res) => {
         lastName,
         dob: birthDate,
         guardianPhone,
-        // Only link worker if ID is a valid MongoDB ObjectId (24 chars)
-        ...(workerId && workerId.length === 24 ? {
-          registeredBy: { connect: { id: workerId } }
-        } : {}),
+        // Optional: Link to the health worker who performed the registration
+        ...(workerId && { workerId: workerId }),
         records: {
           create: VACCINE_SCHEDULE.map(v => ({
             vaccineName: v.name,
             status: 'DUE',
             nextDueDate: new Date(birthDate.getTime() + v.days * 24 * 60 * 60 * 1000),
-            clinicName: req.worker?.clinicName || "Asaba General Hospital"
+            clinicName: req.user?.clinicName || "Obiaruku Central Clinic"
           }))
         }
-      }
+      },
+      include: { records: true } // Return the child WITH their schedule
     });
 
     res.status(201).json(newChild);
   } catch (error) {
-    console.error("Register Error:", error);
+    console.error("Registration Error:", error);
     res.status(500).json({ error: "Registration failed", details: error.message });
   }
 });
