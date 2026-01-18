@@ -22,11 +22,16 @@ if (process.env.NODE_ENV === "production") {
 
 const app = express();
 
-// Middleware
-app.use(cors({ origin: "*", methods: ["GET", "POST", "PATCH", "DELETE"], credentials: true }));
+// --- 🛠️ MIDDLEWARE ---
+// Critical: Added more specific CORS to allow Authorization headers
+app.use(cors({ 
+  origin: "*", 
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"], 
+  allowedHeaders: ["Content-Type", "Authorization"] 
+}));
 app.use(express.json());
 
-// ✅ ROOT HEALTH CHECK
+// ROOT HEALTH CHECK
 app.get("/", (req, res) => {
   res.status(200).json({ status: "Online", node: "ObiTrack Obiaruku Node" });
 });
@@ -78,10 +83,7 @@ app.post("/api/worker/login", async (req, res) => {
 app.post("/api/register", protect, registerChild);
 app.get("/api/search", protect, searchChild);
 
-/**
- * ✅ FIXED: GET DUE TODAY
- * Added this missing route to fix your 404 error
- */
+// DASHBOARD QUEUE: Children due for vaccines today
 app.get("/api/due-today", protect, async (req, res) => {
   try {
     const start = new Date(); start.setHours(0, 0, 0, 0);
@@ -101,7 +103,7 @@ app.get("/api/due-today", protect, async (req, res) => {
   }
 });
 
-// GET MEDICAL CARD
+// GET MEDICAL CARD (History)
 app.get("/api/records/:id", protect, async (req, res) => {
   const { id } = req.params;
   if (!id || id === "undefined" || id === "null") {
@@ -119,12 +121,13 @@ app.get("/api/records/:id", protect, async (req, res) => {
   }
 });
 
-// UPDATE VACCINE
+// UPDATE VACCINE (Administer dose)
 app.post("/api/records/update-vaccine", protect, async (req, res) => {
   const { childId, vaccineName, dateGiven } = req.body;
   const workerId = req.user.id;
 
   try {
+    // Attempt to update the 'DUE' record to 'COMPLETED'
     const updated = await prisma.record.updateMany({
       where: { childId, vaccineName, status: "DUE" },
       data: { 
@@ -135,14 +138,27 @@ app.post("/api/records/update-vaccine", protect, async (req, res) => {
       }
     });
 
-    if (updated.count === 0) return res.status(404).json({ error: "No pending dose found" });
+    // Fallback: If no 'DUE' record exists, create a new 'COMPLETED' entry
+    if (updated.count === 0) {
+        await prisma.record.create({
+            data: {
+                childId,
+                vaccineName,
+                status: "COMPLETED",
+                administeredAt: new Date(dateGiven),
+                workerId,
+                clinicName: "Obiaruku Central Clinic",
+                nextDueDate: new Date() // Placeholder
+            }
+        });
+    }
     res.json({ success: true });
   } catch (error) {
-    res.status(400).json({ error: "Update failed" });
+    res.status(400).json({ error: "Vaccination update failed" });
   }
 });
 
-// DASHBOARD STATS
+// DASHBOARD SUMMARY STATS
 app.get("/api/stats", protect, async (req, res) => {
   try {
     const start = new Date(); start.setHours(0,0,0,0);
@@ -156,7 +172,34 @@ app.get("/api/stats", protect, async (req, res) => {
 
     res.json({ totalChildren, vaccinesDueToday, totalAdministered });
   } catch (error) {
-    res.status(500).json({ error: "Stats failed" });
+    res.status(500).json({ error: "Stats fetch failed" });
+  }
+});
+
+// ✅ ADDED: ANALYTICS METRICS ROUTE
+app.get("/api/metrics", protect, async (req, res) => {
+  try {
+    const vaccineStats = await prisma.record.groupBy({
+      by: ['vaccineName', 'status'],
+      _count: { id: true },
+    });
+
+    const totalChildren = await prisma.child.count();
+    const completedDoses = await prisma.record.count({ where: { status: "COMPLETED" } });
+    
+    // Simple calculation for coverage rate
+    const overallCoverage = totalChildren > 0 
+      ? `${Math.round((completedDoses / (totalChildren * 5)) * 100)}%` 
+      : "0%";
+
+    res.json({
+      overallCoverage,
+      totalCompleted: completedDoses,
+      vaccineStats,
+      hotspots: [] // Placeholder for future spatial analysis
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Metrics synchronization failed" });
   }
 });
 
