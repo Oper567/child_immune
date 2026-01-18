@@ -3,11 +3,15 @@ const cors = require("cors");
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 
+// Utilities & Middleware
 const { hashPassword, generateToken } = require("./utils/auth.js");
 const { protect } = require("./middleware/auth.js");
+
+// Controllers
 const { registerChild } = require("./controllers/childController");
 const { searchChild } = require("./controllers/searchController");
 
+// Prisma Setup
 let prisma;
 if (process.env.NODE_ENV === "production") {
   prisma = new PrismaClient({ log: ["error", "warn"] });
@@ -17,13 +21,17 @@ if (process.env.NODE_ENV === "production") {
 }
 
 const app = express();
+
+// Middleware
 app.use(cors({ origin: "*", methods: ["GET", "POST", "PATCH", "DELETE"], credentials: true }));
 app.use(express.json());
 
-// ✅ HEALTH CHECK
-app.get("/", (req, res) => res.status(200).json({ status: "Online", node: "ObiTrack Obiaruku" }));
+// ✅ ROOT HEALTH CHECK
+app.get("/", (req, res) => {
+  res.status(200).json({ status: "Online", node: "ObiTrack Obiaruku Node" });
+});
 
-// --- 🔐 AUTH ROUTES ---
+// --- 🔐 WORKER AUTH ROUTES ---
 
 app.post("/api/worker/register", async (req, res) => {
   const { name, email, password, clinicCode } = req.body;
@@ -70,19 +78,40 @@ app.post("/api/worker/login", async (req, res) => {
 app.post("/api/register", protect, registerChild);
 app.get("/api/search", protect, searchChild);
 
-// GET MEDICAL CARD (Child + History)
+/**
+ * ✅ FIXED: GET DUE TODAY
+ * Added this missing route to fix your 404 error
+ */
+app.get("/api/due-today", protect, async (req, res) => {
+  try {
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const end = new Date(); end.setHours(23, 59, 59, 999);
+
+    const dueRecords = await prisma.record.findMany({
+      where: { 
+        status: "DUE", 
+        nextDueDate: { gte: start, lte: end } 
+      },
+      include: { child: true },
+      orderBy: { child: { lastName: "asc" } },
+    });
+    res.json(dueRecords);
+  } catch (error) {
+    res.status(500).json({ error: "Queue fetch failed" });
+  }
+});
+
+// GET MEDICAL CARD
 app.get("/api/records/:id", protect, async (req, res) => {
   const { id } = req.params;
   if (!id || id === "undefined" || id === "null") {
     return res.status(400).json({ error: "A valid Patient ID is required" });
   }
-
   try {
     const child = await prisma.child.findUnique({
       where: { id },
       include: { records: { orderBy: { nextDueDate: 'asc' } } }
     });
-    
     if (!child) return res.status(404).json({ error: "Child not found" });
     res.json(child);
   } catch (error) {
@@ -90,23 +119,18 @@ app.get("/api/records/:id", protect, async (req, res) => {
   }
 });
 
-// UPDATE VACCINE (With Worker Assignment)
+// UPDATE VACCINE
 app.post("/api/records/update-vaccine", protect, async (req, res) => {
   const { childId, vaccineName, dateGiven } = req.body;
-  const workerId = req.user.id; // From 'protect' middleware
+  const workerId = req.user.id;
 
   try {
-    // We use updateMany to target the specific 'DUE' record for that vaccine
     const updated = await prisma.record.updateMany({
-      where: { 
-        childId: childId, 
-        vaccineName: vaccineName, 
-        status: "DUE" 
-      },
+      where: { childId, vaccineName, status: "DUE" },
       data: { 
         status: "COMPLETED", 
         administeredAt: new Date(dateGiven),
-        workerId: workerId,
+        workerId,
         clinicName: "Obiaruku Central Clinic"
       }
     });
@@ -118,6 +142,7 @@ app.post("/api/records/update-vaccine", protect, async (req, res) => {
   }
 });
 
+// DASHBOARD STATS
 app.get("/api/stats", protect, async (req, res) => {
   try {
     const start = new Date(); start.setHours(0,0,0,0);
@@ -135,10 +160,13 @@ app.get("/api/stats", protect, async (req, res) => {
   }
 });
 
+// Error Handling
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error("💥 SERVER ERROR:", err.stack);
   res.status(500).json({ error: "Critical Server Error" });
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, "0.0.0.0", () => console.log(`🚀 ObiTrack Live on ${PORT}`));
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 ObiTrack Live on Port ${PORT}`);
+});
