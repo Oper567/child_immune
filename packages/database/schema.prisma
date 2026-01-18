@@ -1,3 +1,39 @@
+// --- CONFIGURATION ---
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// --- ENUMS ---
+
+enum Status {
+  DUE
+  COMPLETED
+  MISSED
+}
+
+// --- MODELS ---
+
+model HealthWorker {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  email       String   @unique
+  password    String
+  clinicName  String   @default("Obiaruku Central Clinic")
+  clinicCode  String
+  
+  // Relations
+  registeredChildren Child[]
+  administeredRecords Record[]
+  
+  createdAt   DateTime @default(now())
+}
+
 model Child {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   uhid            String   @unique
@@ -5,8 +41,9 @@ model Child {
   lastName        String
   dateOfBirth     DateTime @map("dob")
   guardianPhone   String
-  records         Record[]
   
+  // Relations
+  records         Record[]
   registeredById  String?  @db.ObjectId
   registeredBy    HealthWorker? @relation(fields: [registeredById], references: [id])
   
@@ -20,6 +57,7 @@ model Record {
   administeredAt  DateTime?
   nextDueDate     DateTime
   
+  // Relations
   childId         String        @db.ObjectId
   child           Child         @relation(fields: [childId], references: [id])
   
@@ -27,4 +65,5 @@ model Record {
   worker          HealthWorker? @relation(fields: [workerId], references: [id])
   
   clinicName      String        @default("Obiaruku Central Clinic")
+  updatedAt       DateTime      @updatedAt
 }
