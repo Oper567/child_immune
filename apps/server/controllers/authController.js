@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+﻿const { PrismaClient } = require("database");
 const prisma = new PrismaClient();
 const bcrypt = require('bcryptjs'); // You may need to run: npm install bcryptjs
 

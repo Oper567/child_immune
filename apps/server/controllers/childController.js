@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+﻿const { PrismaClient } = require("database");
 
 if (!global.prisma) {
   global.prisma = new PrismaClient();
@@ -52,7 +52,7 @@ const registerChild = async (req, res) => {
         lastName,
         dob: birthDate,
         guardianPhone,
-        // ✅ ONLY connect if workerId exists to avoid MongoDB BSON error
+        // âœ… ONLY connect if workerId exists to avoid MongoDB BSON error
         ...(workerId && { registeredBy: { connect: { id: workerId } } }),
         records: {
           create: VACCINE_SCHEDULE.map(v => ({
@@ -68,11 +68,11 @@ const registerChild = async (req, res) => {
       }
     });
 
-    console.log(`🏥 [SUCCESS] ${uhid} registered.`);
+    console.log(`ðŸ¥ [SUCCESS] ${uhid} registered.`);
     return res.status(201).json(newChild);
 
   } catch (error) {
-    console.error("❌ DB Error:", error.message);
+    console.error("âŒ DB Error:", error.message);
 
     if (error.code === 'P2002') {
       return res.status(400).json({ error: "Child already exists (UHID/Phone duplicate)." });

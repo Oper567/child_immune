@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+﻿const { PrismaClient } = require("database");
 const prisma = new PrismaClient();
 
 const administerVaccine = async (req, res) => {
