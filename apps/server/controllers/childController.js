@@ -1,8 +1,6 @@
 ﻿const { prisma } = require("@immunize/database");
 if (!global.prisma) {
 }
-const prisma = global.prisma;
-
 const VACCINE_SCHEDULE = [
   { name: 'BCG', days: 0 },
   { name: 'OPV-0', days: 0 },
@@ -89,4 +87,5 @@ const registerChild = async (req, res) => {
 };
 
 module.exports = { registerChild };
+
 
