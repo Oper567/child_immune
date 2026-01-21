@@ -1,8 +1,8 @@
-{
+﻿{
   "name": "server",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {
+  "scripts": { "render:build": "chmod +x node_modules/.bin/prisma && prisma generate --schema=../../packages/database/schema.prisma && prisma db push --schema=../../packages/database/schema.prisma",
     "start": "node index.js",
     "dev": "nodemon index.js",
     "vercel-build": "PRISMA_CLI_BINARY_TARGETS=rhel-openssl-3.0.x prisma generate --schema ../../packages/database/schema.prisma",
@@ -25,3 +25,4 @@
     "nodemon": "^3.1.7"
   }
 }
+
