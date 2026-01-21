@@ -1,28 +1,23 @@
-const { verifyToken } = require('../utils/jwt');
+﻿const jwt = require("jsonwebtoken");
 
-const protect = async (req, res, next) => {
+const protect = (req, res, next) => {
   try {
-    let token;
-
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    }
-
-    if (!token) {
+    const auth = req.headers.authorization || "";
+    if (!auth.startsWith("Bearer ")) {
       return res.status(401).json({ error: "Access denied. Please log in." });
     }
 
-    // ✅ This is where the "verifyToken is not a function" was happening
-    const decoded = verifyToken(token);
+    const token = auth.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Attach worker info (id, role, clinicName) to the request object
-    req.worker = decoded; 
-    
+    // decoded contains { id, role, clinicName }
+    req.worker = decoded;
+
     next();
-  } catch (error) {
-    console.error("🔒 Auth Error:", error.message);
+  } catch (err) {
+    console.error("🔒 Auth Error:", err.message);
     return res.status(401).json({ error: "Session expired or invalid token." });
   }
 };
 
-module.exports = { protect }; 
+module.exports = { protect };
