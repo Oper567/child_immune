@@ -11,6 +11,7 @@
   },
   "type": "commonjs",
   "dependencies": {
+    "@immunize/database": "workspace:*",
     "@prisma/client": "^6.19.1",
     "@react-pdf/renderer": "^4.3.2",
     "bcryptjs": "^3.0.3",

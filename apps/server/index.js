@@ -1,6 +1,6 @@
 ﻿const express = require("express");
 const cors = require("cors");
-const { prisma } = require("@immunize/database");
+const { prisma } = require("../../packages/database");
 const bcrypt = require("bcryptjs");
 
 // Utilities & Middleware
