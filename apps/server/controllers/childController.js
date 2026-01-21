@@ -1,4 +1,5 @@
-﻿const { prisma } = require("@immunize/database");
+﻿const { prisma } = require("../../../packages/database");
+
 if (!global.prisma) {
 }
 const VACCINE_SCHEDULE = [
