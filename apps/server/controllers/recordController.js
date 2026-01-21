@@ -1,6 +1,4 @@
-﻿const { PrismaClient } = require("database");
-const prisma = new PrismaClient();
-
+﻿const { prisma } = require("@immunize/database");
 const administerVaccine = async (req, res) => {
   const { recordId } = req.params;
   const { clinicName } = req.body;
@@ -28,3 +26,4 @@ const administerVaccine = async (req, res) => {
 };
 
 module.exports = { administerVaccine };
+

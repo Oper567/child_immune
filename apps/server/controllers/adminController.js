@@ -1,5 +1,4 @@
-﻿const { PrismaClient } = require("database");
-
+﻿const { prisma } = require("@immunize/database");
 /** * 1. FIX: In monorepos, Prisma Client might need a specific path. 
  * If this fails, we use the standard way.
  */
@@ -8,7 +7,6 @@ if (process.env.NODE_ENV === 'production') {
   prisma = new PrismaClient();
 } else {
   if (!global.prisma) {
-    global.prisma = new PrismaClient();
   }
   prisma = global.prisma;
 }
@@ -65,3 +63,4 @@ const getHealthMetrics = async (req, res) => {
 
 // Ensure these names match your imports in index.js exactly
 module.exports = { getHealthMetrics };
+

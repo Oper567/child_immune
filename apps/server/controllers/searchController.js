@@ -1,6 +1,4 @@
-﻿const { PrismaClient } = require("database");
-const prisma = new PrismaClient();
-
+﻿const { prisma } = require("@immunize/database");
 const searchChild = async (req, res) => {
   const { query } = req.query;
 
@@ -40,3 +38,4 @@ const searchChild = async (req, res) => {
   }
 };
 module.exports = { searchChild };
+

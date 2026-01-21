@@ -1,6 +1,6 @@
 ﻿const express = require("express");
 const cors = require("cors");
-const { PrismaClient } = require("database");
+const { prisma } = require("@immunize/database");
 const bcrypt = require("bcryptjs");
 
 // Utilities & Middleware
@@ -212,5 +212,6 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, "0.0.0.0", () => console.log("🚀 child-immune-api live on "));
+
 
 

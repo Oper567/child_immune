@@ -1,5 +1,4 @@
-﻿const { PrismaClient } = require("database");
-const prisma = new PrismaClient();
+﻿const { prisma } = require("@immunize/database");
 const bcrypt = require('bcryptjs'); // You may need to run: npm install bcryptjs
 
 // 1. Register a New Health Worker
@@ -38,3 +37,4 @@ const loginWorker = async (req, res) => {
 };
 
 module.exports = { registerWorker, loginWorker };
+

@@ -1,12 +1,9 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
+const { prisma } = require("@immunize/database");
 const { protect } = require('../middleware/auth'); // Import your JWT protector
-
-const prisma = new PrismaClient();
-
 /**
- * 🇳🇬 Nigeria EPI Schedule Definition
+ * ðŸ‡³ðŸ‡¬ Nigeria EPI Schedule Definition
  * 'days' represents the number of days after birth the vaccine is due.
  */
 const VACCINE_SCHEDULE = [
@@ -99,3 +96,4 @@ router.post('/register', protect, async (req, res) => {
 });
 
 module.exports = router;
+

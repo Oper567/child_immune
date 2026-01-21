@@ -1,7 +1,5 @@
-﻿const { PrismaClient } = require("database");
-
+﻿const { prisma } = require("@immunize/database");
 if (!global.prisma) {
-  global.prisma = new PrismaClient();
 }
 const prisma = global.prisma;
 
@@ -91,3 +89,4 @@ const registerChild = async (req, res) => {
 };
 
 module.exports = { registerChild };
+
