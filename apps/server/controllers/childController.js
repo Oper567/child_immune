@@ -47,7 +47,7 @@ const registerChild = async (req, res) => {
         uhid,
         firstName,
         lastName,
-        dob: birthDate,
+        dateOfBirth: birthDate,
         guardianPhone,
         // âœ… ONLY connect if workerId exists to avoid MongoDB BSON error
         ...(workerId && { registeredBy: { connect: { id: workerId } } }),
@@ -88,5 +88,6 @@ const registerChild = async (req, res) => {
 };
 
 module.exports = { registerChild };
+
 
 

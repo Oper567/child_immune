@@ -26,7 +26,7 @@ const searchChild = async (req, res) => {
         uhid: true,
         firstName: true,
         lastName: true,
-        dob: true,
+        dateOfBirth: true,
         guardianPhone: true // Added to help verify the correct child
       },
       take: 15 // Limit results to prevent UI lag on mobile
@@ -39,4 +39,5 @@ const searchChild = async (req, res) => {
   }
 };
 module.exports = { searchChild };
+
 
