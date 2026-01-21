@@ -209,5 +209,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Critical Server Error" });
 });
 
+
 const PORT = process.env.PORT || 10000;
-const PORT = process.env.PORT || 10000;`napp.listen(PORT, "0.0.0.0", () => console.log(`🚀 child-immune-api live on ${PORT}`));`n});
+app.listen(PORT, "0.0.0.0", () => console.log("🚀 child-immune-api live on "));
+
