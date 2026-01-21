@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -16,8 +16,8 @@ import {
   Loader2
 } from 'lucide-react';
 
-// ✅ Ensure API_BASE matches your backend deployment
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://child-immune-api.onrender.com';
+// âœ… Ensure API_BASE matches your backend deployment
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '$\{process\.env\.NEXT_PUBLIC_API_URL\}';
 
 export default function MedicalCardPage() {
   const params = useParams();
@@ -36,7 +36,7 @@ export default function MedicalCardPage() {
 
   // --- 1. DATA FETCHING ---
   const fetchChildData = useCallback(async () => {
-    // 🛡️ Ensure ID exists from dynamic route /[id]
+    // ðŸ›¡ï¸ Ensure ID exists from dynamic route /[id]
     const childId = params?.id;
     if (!childId) return;
 

@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const cors = require("cors");
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
@@ -22,7 +22,7 @@ if (process.env.NODE_ENV === "production") {
 
 const app = express();
 
-// --- 🛠️ MIDDLEWARE ---
+// --- ðŸ› ï¸ MIDDLEWARE ---
 // Critical: Added more specific CORS to allow Authorization headers
 app.use(cors({ 
   origin: "*", 
@@ -36,7 +36,7 @@ app.get("/", (req, res) => {
   res.status(200).json({ status: "Online", node: "ObiTrack Obiaruku Node" });
 });
 
-// --- 🔐 WORKER AUTH ROUTES ---
+// --- ðŸ” WORKER AUTH ROUTES ---
 
 app.post("/api/worker/register", async (req, res) => {
   const { name, email, password, clinicCode } = req.body;
@@ -78,7 +78,7 @@ app.post("/api/worker/login", async (req, res) => {
   }
 });
 
-// --- 🏥 CLINIC DATA ROUTES ---
+// --- ðŸ¥ CLINIC DATA ROUTES ---
 
 app.post("/api/register", protect, registerChild);
 app.get("/api/search", protect, searchChild);
@@ -176,7 +176,7 @@ app.get("/api/stats", protect, async (req, res) => {
   }
 });
 
-// ✅ ADDED: ANALYTICS METRICS ROUTE
+// âœ… ADDED: ANALYTICS METRICS ROUTE
 app.get("/api/metrics", protect, async (req, res) => {
   try {
     const vaccineStats = await prisma.record.groupBy({
@@ -205,11 +205,9 @@ app.get("/api/metrics", protect, async (req, res) => {
 
 // Error Handling
 app.use((err, req, res, next) => {
-  console.error("💥 SERVER ERROR:", err.stack);
+  console.error("ðŸ’¥ SERVER ERROR:", err.stack);
   res.status(500).json({ error: "Critical Server Error" });
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 ObiTrack Live on Port ${PORT}`);
-});
+const PORT = process.env.PORT || 10000;`napp.listen(PORT, "0.0.0.0", () => console.log(`🚀 child-immune-api live on ${PORT}`));`n});

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock, Mail, Hospital, Loader2, ArrowRight } from 'lucide-react';
@@ -15,7 +15,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:10000';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || '$\{process\.env\.NEXT_PUBLIC_API_URL\}';
       const res = await fetch(`${baseUrl}/api/worker/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -25,7 +25,7 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        // ✅ Logic: Save credentials AND the role for RootLayout to read
+        // âœ… Logic: Save credentials AND the role for RootLayout to read
         localStorage.setItem('token', data.token);
         localStorage.setItem('workerName', data.name);
         localStorage.setItem('clinicName', data.clinicName);
@@ -83,7 +83,7 @@ export default function LoginPage() {
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input 
                   type="password" 
-                  placeholder="••••••••" 
+                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" 
                   className="w-full p-4 pl-12 rounded-2xl bg-slate-50 border-none outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-bold text-slate-700"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 
@@ -8,7 +8,7 @@ export default function RegisterChild() {
 
   const onSubmit = async (data: any) => {
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:10000';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || '$\{process\.env\.NEXT_PUBLIC_API_URL\}';
       
       // 1. Get the token from localStorage
       const token = localStorage.getItem('token');

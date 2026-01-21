@@ -1,11 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from 'react';
 import { Users, Syringe, AlertCircle, Phone, CheckCircle2, RefreshCw, MapPin, Loader2, ArrowRight, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 // Ensure this environment variable is set in your Render/Vercel dashboard
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://child-immune-api.onrender.com';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '$\{process\.env\.NEXT_PUBLIC_API_URL\}';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({ totalChildren: 0, vaccinesDueToday: 0, totalAdministered: 0 });
@@ -83,7 +83,7 @@ export default function AdminDashboard() {
       });
 
       if (res.ok) {
-        // ✅ OPTIMISTIC UI: Remove from list immediately
+        // âœ… OPTIMISTIC UI: Remove from list immediately
         setDueList(prev => prev.filter(item => item.id !== record.id));
         setStats(prev => ({ 
             ...prev, 

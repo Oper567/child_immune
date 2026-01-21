@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -6,7 +6,7 @@ import { TrendingUp, AlertCircle, CheckCircle, Map, Info, Loader2, RefreshCw, Do
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://child-immune-api.onrender.com';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '$\{process\.env\.NEXT_PUBLIC_API_URL\}';
 
 export default function AnalyticsDashboard() {
   const [data, setData] = useState<any>(null);

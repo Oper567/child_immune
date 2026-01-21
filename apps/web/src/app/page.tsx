@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { Search, Calendar, Phone, CheckCircle, Clock, AlertCircle } from 'lucide-react';
@@ -26,7 +26,7 @@ export default function SearchChild() {
   const [loading, setLoading] = useState(false);
 
   // Use Environment Variable or fallback to local
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:10000';
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || '$\{process\.env\.NEXT_PUBLIC_API_URL\}';
 
   // 2. Triage Logic: Helper to color-code dates
   const getDateStatus = (dateString: string, status: string) => {
