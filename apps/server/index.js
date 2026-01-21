@@ -14,7 +14,6 @@ const { searchChild } = require("./controllers/searchController");
 
 // Prisma Setup
 if (process.env.NODE_ENV === "production") {
-  prisma = new PrismaClient({ log: ["error", "warn"] });
 } else {
   if (!global.prisma) global.prisma = new PrismaClient();
 }
@@ -209,11 +208,7 @@ app.use((err, req, res, next) => {
 });
 
 
+
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, "0.0.0.0", () => console.log("🚀 child-immune-api live on "));
-
-
-
-
-
+app.listen(PORT, "0.0.0.0", () => console.log("🚀 Server live on "));
 
