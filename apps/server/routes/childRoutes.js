@@ -1,6 +1,7 @@
 ﻿const express = require('express');
 const router = express.Router();
-const { prisma } = require("@immunize/database");
+const { prisma } = require("../../../packages/database");
+
 const { protect } = require('../middleware/auth'); // Import your JWT protector
 /**
  * ðŸ‡³ðŸ‡¬ Nigeria EPI Schedule Definition

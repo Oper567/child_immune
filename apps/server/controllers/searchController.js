@@ -1,4 +1,5 @@
-﻿const { prisma } = require("@immunize/database");
+﻿const { prisma } = require("../../../packages/database");
+
 const searchChild = async (req, res) => {
   const { query } = req.query;
 

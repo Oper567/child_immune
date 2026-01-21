@@ -1,4 +1,5 @@
-﻿const { prisma } = require("@immunize/database");
+﻿const { prisma } = require("../../../packages/database");
+
 const administerVaccine = async (req, res) => {
   const { recordId } = req.params;
   const { clinicName } = req.body;

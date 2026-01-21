@@ -1,7 +1,7 @@
-﻿const { prisma } = require("@immunize/database");
+﻿// IMPORTS
 const express = require("express");
 const cors = require("cors");
-const { prisma } = require("../../packages/database");
+const { prisma } = require("../../packages/database")
 const bcrypt = require("bcryptjs");
 
 // Utilities & Middleware
@@ -17,7 +17,6 @@ if (process.env.NODE_ENV === "production") {
   prisma = new PrismaClient({ log: ["error", "warn"] });
 } else {
   if (!global.prisma) global.prisma = new PrismaClient();
-  prisma = global.prisma;
 }
 
 const app = express();
@@ -212,6 +211,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, "0.0.0.0", () => console.log("🚀 child-immune-api live on "));
+
 
 
 

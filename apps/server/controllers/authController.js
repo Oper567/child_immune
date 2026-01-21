@@ -1,4 +1,5 @@
-﻿const { prisma } = require("@immunize/database");
+﻿const { prisma } = require("../../../packages/database");
+
 const bcrypt = require('bcryptjs'); // You may need to run: npm install bcryptjs
 
 // 1. Register a New Health Worker

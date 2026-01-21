@@ -1,4 +1,5 @@
-﻿const { prisma } = require("@immunize/database");
+﻿const { prisma } = require("../../../packages/database");
+
 /** * 1. FIX: In monorepos, Prisma Client might need a specific path. 
  * If this fails, we use the standard way.
  */
