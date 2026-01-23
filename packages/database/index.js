@@ -1,12 +1,15 @@
 ﻿const { PrismaClient } = require("@prisma/client");
 
-// Prisma singleton (prevents too many connections in dev)
 const globalForPrisma = globalThis;
 
+// Reuse the same PrismaClient in dev/hot-reload environments
 const prisma =
   globalForPrisma.__prisma ||
   new PrismaClient({
-    log: ["error", "warn"],
+    log:
+      process.env.NODE_ENV === "production"
+        ? ["error"]
+        : ["error", "warn"],
   });
 
 if (process.env.NODE_ENV !== "production") {
