@@ -17,37 +17,49 @@ enum Status {
   MISSED
 }
 
+enum WorkerRole {
+  WORKER
+  ADMIN
+}
+
 // --- MODELS ---
 
 model HealthWorker {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
   name        String
-  email       String   @unique
+  email       String     @unique
   password    String
-  clinicName  String   @default("Obiaruku Central Clinic")
-  clinicCode  String
-  
+
+  clinicName  String     @default("Obiaruku Central Clinic")
+
+  // ✅ This matches your UI field "WORKER ID"
+  workerId    String     @unique
+
+  // ✅ For access control (optional but useful)
+  role        WorkerRole @default(WORKER)
+
   // Relations
-  registeredChildren Child[]
-  administeredRecords Record[]
-  
-  createdAt   DateTime @default(now())
+  registeredChildren   Child[]
+  administeredRecords  Record[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model Child {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  uhid            String   @unique
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  uhid            String        @unique
   firstName       String
   lastName        String
-  dateOfBirth     DateTime @map("dob")
+  dateOfBirth     DateTime      @map("dob")
   guardianPhone   String
-  
+
   // Relations
   records         Record[]
-  registeredById  String?  @db.ObjectId
+  registeredById  String?       @db.ObjectId
   registeredBy    HealthWorker? @relation(fields: [registeredById], references: [id])
-  
-  createdAt       DateTime @default(now())
+
+  createdAt       DateTime      @default(now())
 }
 
 model Record {
@@ -56,14 +68,14 @@ model Record {
   status          Status        @default(DUE)
   administeredAt  DateTime?
   nextDueDate     DateTime
-  
+
   // Relations
   childId         String        @db.ObjectId
   child           Child         @relation(fields: [childId], references: [id])
-  
+
   workerId        String?       @db.ObjectId
   worker          HealthWorker? @relation(fields: [workerId], references: [id])
-  
+
   clinicName      String        @default("Obiaruku Central Clinic")
   updatedAt       DateTime      @updatedAt
 }

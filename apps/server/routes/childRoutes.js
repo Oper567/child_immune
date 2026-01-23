@@ -73,7 +73,7 @@ router.post('/register', protect, async (req, res) => {
         uhid,
         firstName,
         lastName,
-        dob: birthDate,
+        dateOfBirth: birthDate,
         guardianPhone,
         // Optional: Link to the health worker who performed the registration
         ...(workerId && { workerId: workerId }),
@@ -97,4 +97,5 @@ router.post('/register', protect, async (req, res) => {
 });
 
 module.exports = router;
+
 
