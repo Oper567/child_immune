@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, Mail, Lock, User, ShieldCheck, ArrowRight, Loader2 } from "lucide-react";
+import { UserPlus, Mail, Lock, User, ShieldCheck, ArrowRight, Loader2, Hospital } from "lucide-react";
 import Link from "next/link";
 
 export default function RegisterWorker() {
@@ -14,6 +14,7 @@ export default function RegisterWorker() {
     email: "",
     password: "",
     workerId: "",
+    clinicName: "Obiaruku Central Clinic", // ✅ default
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,11 +31,12 @@ export default function RegisterWorker() {
       const payload = {
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
-        workerId: formData.workerId.trim().toUpperCase(),
         password: formData.password,
+        workerId: formData.workerId.trim().toUpperCase(),
+        clinicName: formData.clinicName.trim(), // ✅ send this
       };
 
-      // Worker ID format check (adjust if your format differs)
+      // Worker ID format check
       if (!/^OB-2024-\d{4}$/.test(payload.workerId)) {
         alert("Invalid Worker ID. Use format: OB-2024-1234");
         return;
@@ -49,11 +51,10 @@ export default function RegisterWorker() {
       const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
-        // Store token + profile info (match what your backend returns)
         if (data.token) localStorage.setItem("token", data.token);
         localStorage.setItem("workerName", data.name || payload.name);
-        if (data.clinicName) localStorage.setItem("clinicName", data.clinicName);
-        localStorage.setItem("role", data.role || "worker");
+        localStorage.setItem("clinicName", data.clinicName || payload.clinicName);
+        localStorage.setItem("role", data.role || "WORKER");
 
         router.push("/dashboard");
       } else {
@@ -111,6 +112,24 @@ export default function RegisterWorker() {
                   className="w-full pl-12 pr-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 transition-all font-bold text-slate-700 placeholder:text-slate-300"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {/* Clinic Name (optional UI, but sent to backend) */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2">
+                Clinic Name
+              </label>
+              <div className="relative">
+                <Hospital className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  type="text"
+                  required
+                  placeholder="Obiaruku Central Clinic"
+                  className="w-full pl-12 pr-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 transition-all font-bold text-slate-700 placeholder:text-slate-300"
+                  value={formData.clinicName}
+                  onChange={(e) => setFormData({ ...formData, clinicName: e.target.value })}
                 />
               </div>
             </div>

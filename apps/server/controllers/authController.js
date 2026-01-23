@@ -19,14 +19,17 @@ const registerWorker = async (req, res) => {
   try {
     const { name, email, password, clinicName, workerId } = req.body;
 
+    // Validate required fields
     if (!name || !email || !password || !clinicName || !workerId) {
       return res.status(400).json({ error: "All fields are required" });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedWorkerId = workerId.trim().toUpperCase();
+    const cleanName = name.trim();
+    const cleanClinicName = clinicName.trim();
 
-    // Worker ID format check (edit if your format differs)
+    // Worker ID format check (adjust if your format differs)
     if (!/^OB-2024-\d{4}$/.test(normalizedWorkerId)) {
       return res.status(400).json({ error: "Invalid Worker ID. Use OB-2024-1234" });
     }
@@ -34,11 +37,9 @@ const registerWorker = async (req, res) => {
     // Check duplicates
     const existing = await prisma.healthWorker.findFirst({
       where: {
-        OR: [
-          { email: normalizedEmail },
-          { workerId: normalizedWorkerId }
-        ]
-      }
+        OR: [{ email: normalizedEmail }, { workerId: normalizedWorkerId }],
+      },
+      select: { id: true },
     });
 
     if (existing) {
@@ -49,20 +50,20 @@ const registerWorker = async (req, res) => {
 
     const worker = await prisma.healthWorker.create({
       data: {
-        name: name.trim(),
+        name: cleanName,
         email: normalizedEmail,
         password: hashedPassword,
-        clinicName: clinicName.trim(),
+        clinicName: cleanClinicName,
         workerId: normalizedWorkerId,
-        role: "worker" // or "admin" if you want special accounts
+        role: "worker", // keep string if your schema role is String, use "WORKER" if enum
       },
       select: {
         id: true,
         name: true,
-        email: true,
         clinicName: true,
-        role: true
-      }
+        role: true,
+        workerId: true,
+      },
     });
 
     const token = signToken(worker);
@@ -71,11 +72,20 @@ const registerWorker = async (req, res) => {
       token,
       name: worker.name,
       clinicName: worker.clinicName,
-      role: worker.role,
-      workerId: worker.id
+      role: worker.role || "worker",
+
+      // ✅ both identifiers
+      workerDbId: worker.id,        // Mongo _id
+      workerId: worker.workerId,    // staff code e.g OB-2024-1234
     });
   } catch (error) {
     console.error(error);
+
+    // Prisma unique constraint (Mongo)
+    if (error.code === "P2002") {
+      return res.status(409).json({ error: "Email or Worker ID already exists" });
+    }
+
     return res.status(500).json({ error: "Registration failed" });
   }
 };
@@ -96,11 +106,11 @@ const loginWorker = async (req, res) => {
       select: {
         id: true,
         name: true,
-        email: true,
         password: true,
         clinicName: true,
-        role: true
-      }
+        role: true,
+        workerId: true, // ✅ include staff code
+      },
     });
 
     if (!worker) {
@@ -119,7 +129,10 @@ const loginWorker = async (req, res) => {
       name: worker.name,
       clinicName: worker.clinicName,
       role: worker.role || "worker",
-      workerId: worker.id
+
+      // ✅ both identifiers
+      workerDbId: worker.id,
+      workerId: worker.workerId,
     });
   } catch (error) {
     console.error(error);
