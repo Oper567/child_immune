@@ -32,10 +32,9 @@ model HealthWorker {
 
   clinicName  String     @default("Obiaruku Central Clinic")
 
-  // ✅ This matches your UI field "WORKER ID"
-  workerId    String     @unique
+  // ✅ Staff code from UI (OB-2024-1234)
+  staffId     String     @unique
 
-  // ✅ For access control (optional but useful)
   role        WorkerRole @default(WORKER)
 
   // Relations
@@ -54,7 +53,6 @@ model Child {
   dateOfBirth     DateTime      @map("dob")
   guardianPhone   String
 
-  // Relations
   records         Record[]
   registeredById  String?       @db.ObjectId
   registeredBy    HealthWorker? @relation(fields: [registeredById], references: [id])
@@ -73,6 +71,7 @@ model Record {
   childId         String        @db.ObjectId
   child           Child         @relation(fields: [childId], references: [id])
 
+  // ✅ This is the DB relation id (keep as workerId)
   workerId        String?       @db.ObjectId
   worker          HealthWorker? @relation(fields: [workerId], references: [id])
 
